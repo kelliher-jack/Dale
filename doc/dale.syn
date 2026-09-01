@@ -1,0 +1,242 @@
+digit
+ 
+            0  1  2  3  4  5  6  7  8  9
+ 
+ 
+ 
+digits        digit
+ 
+ 
+ 
+                +
+ 
+number                      digits
+ 
+                -
+ 
+letter
+ 
+            A   ......   Z   a   ......   z
+ 
+
+
+identifier    letter
+
+                              letter
+
+                              digit
+
+                                -
+
+                                _
+
+
+nonnumeric
+
+                 letter   !   "   #   $   %   &   '
+
+
+
+                  @   <   >   -   _   |   \   +   ^
+
+
+
+                  :   *   /   [   ,   ]   .   ?   {   }
+
+variable           identifier
+
+
+type name          identifier
+
+
+class id           identifier
+
+
+comment      /*    charactor    */
+
+
+primary                    variable
+
+
+                            number
+
+
+                            block
+
+
+                    (     expression     )
+
+
+
+block     ($     variable declaration     statements     $)
+
+
+
+expression      primary
+
+
+                             message expr
+
+
+                variable                      <-   expression
+
+
+                             message expr
+
+
+                               parameter
+
+
+
+
+message expr       keyword
+
+
+                                   message expr
+
+
+                                     parameter
+
+
+
+parameter      primary
+
+
+                               message expr
+
+
+
+statements      RETURN      expression         ;
+
+
+                            expression         ;
+
+
+
+variable declaration    VAR     variable                    .
+
+                                              type name
+
+                                       ;
+
+
+class    CLASS    class id
+
+
+
+         SUPPERCLASS:     class id
+
+
+         INSTANCE VARIABLES:     variable                     .
+
+                                               type name
+
+                                     ;
+
+
+         CLASS METHODS:     methods
+
+
+         INSTANCE METHODS:                          method
+
+
+                                domain switch
+
+
+                                domain switch       method
+
+
+         ENDCLASS.
+
+
+function    FUNCTION    class id    METHOD:   fmethod    END.
+
+
+
+
+
+domain switch          EXTERNAL
+
+
+                       INTERNAL
+
+
+
+method     message pattern    arg list           block
+
+
+                                               primitive
+
+
+fmethod     parameter pattern    arg list         block
+
+
+                                                primitive
+
+
+primitive      PRIMITIVE       CALL       address
+
+
+                               CODE        code
+
+
+arg list      variable list
+
+
+
+message pattern      keyword
+
+
+                                     vpattern
+
+
+                                     epattern
+
+
+parameter pattern     SELF-MSG
+
+
+                                       vpattern
+
+
+                                       epattern
+
+
+
+vpattern     &    variable    &    keyword
+
+
+                                                 vpattern
+
+
+                                                 epattern
+
+
+epattern     $    variable
+
+
+                                $    keyword
+
+
+                                keyword          vpattern
+
+
+                                                 epattern
+
+
+keyword     nonnumeric
+
+                                 nonnumeric
+
+
+                                   digit
+
+
+
+
+
+
+
+
+
+

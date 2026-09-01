@@ -1,0 +1,1198 @@
+# Dale Language - Complete Syntax Reference
+
+## 1. Language Overview
+
+Dale is an **object-oriented, message-passing language** based on Smalltalk. Key characteristics:
+
+- Everything is an **object** with methods and instance variables
+- Expressions are **message sends**: `receiver primaryMessage [delimiter parameter]...`
+- Supports **classes**, **inheritance**, **blocks** (closures), **functions**, and **macros**
+- Implemented in PSL (PDP-10 Lisp), runs in NMODE editor environment
+- **Interpreted** (no compilation to native code in this version)
+
+---
+
+## 2. Grammar (BNF)
+
+### 2.1 Top-Level Structure
+
+```
+<DaleStatements> ::= <DaleStatement> {<DaleStatement>} ;
+
+<DaleStatement> ::= <Function>
+                  | <Class>
+                  | <Expression>
+                  | <Diphthong>
+```
+
+### 2.2 Expressions
+
+```
+<Expression> ::= <Variable> {<- <Expression>
+                            | <MessageExpression>
+                              {<- <Expression> | <null>}
+                            | <Parameter>
+                            | <null>}
+               | <Primary> {<MessageExpression> | <null>}
+
+<MessageExpression> ::= <Keyword>
+                       {<MessageExpression> | <Parameter> | <null>}
+
+<Parameter> ::= <Primary> {<MessageExpression> | <null>}
+
+<Primary> ::= <Variable>
+             | <Number>
+             | <Block>
+             | ( <Expression> )
+             | <String>
+```
+
+### 2.3 Blocks and Variables
+
+```
+<Block> ::= ($ {<VariableDeclaration> | <null>} <Statements> $)
+
+<VariableDeclaration> ::= VAR <VariableList> .
+
+<VariableList> ::= <Variable> {<TypeName> | <null>}
+                  | <VariableList> ; <VariableList>
+
+<Statements> ::= {<Expressions> | <null>}
+                {RETURN <Expression> ; | <null>}
+```
+
+### 2.4 Class Definitions
+
+```
+<Class> ::= CLASS <ClassId>
+            {SUPERCLASS : <ClassId> | <null>}
+            {INSTANCE VARIABLES : <VariableList> . | <null>}
+            {CLASS METHODS : <Methods>* | <null>}
+            INSTANCE METHODS :
+                   {<DomainSwitch> | <null>} <Methods>*
+                   {<DomainSwitch> <Methods>* | <null>} ENDCLASS .
+```
+
+### 2.5 Function Definitions
+
+```
+<Function> ::= FUNCTION <ClassId>
+               METHOD : <fMethods>
+               END .
+
+<fMethods> ::= <ParameterPattern> <ArgTypeList>
+               {<Block> | <Primitive> | <null>}
+
+<ParameterPattern> ::= SELF-MSG {<Vpattern> | <Epattern> | <null>}
+```
+
+### 2.6 Methods and Messages
+
+```
+<Methods> ::= <MessagePattern> <ArgTypeList>
+              {<Block> | <Primitive> | <null>}
+
+<MessagePattern> ::= <Keyword> {<Vpattern> | <Epattern> | <null>}
+
+<ArgTypeList> ::= VariableList | <null>
+
+<Primitive> ::= PRIMITIVE {<Call> | <Code>}
+
+<Call> ::= CALL <runtime routine address>
+
+<Code> ::= CODE <hexadecimal machine code>
+```
+
+### 2.7 Parameter Patterns (Macros)
+
+```
+<Evalarg> ::= $ <Variable>
+
+<Valarg> ::= & <Variable>
+
+<Epattern> ::= <Evalarg>
+               {$ <Keyword>
+                | <Keyword> {<Vpattern> | <Epattern>}
+                | <null>}
+
+<Vpattern> ::= <Valarg>
+               {& <Keyword>
+                | <Keyword> {<Vpattern> | <Epattern>}
+                | <null>}
+```
+
+### 2.8 Domain Switches
+
+```
+<DomainSwitch> ::= EXTERNAL | INTERNAL
+```
+
+### 2.9 Labels and Goto
+
+```
+<LabelExpr> ::= LABEL: <label> | GOTO <label>
+```
+
+### 2.10 Lexical Elements
+
+```
+<Keyword> ::= <Nonnumeric> {<Nonnumeric> / <Digit>}* ;
+
+<Nonnumeric> ::= <Letter> | <SpecialChar>
+
+<Identifier> ::= <Letter> {<Letter> | <Digit> | _ | -}*
+
+<Letter> ::= A | B | ... | Z | a | b | ... | z
+
+<Digit> ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+<Digits> ::= <Digit> | <Digit> <Digits>
+
+<Number> ::= {+ | - | <null>} <Digits>
+
+<String> ::= " <any character except a quote> "
+
+<SpecialChar> ::= ! | " | # | $ | % | & | ' | @
+                | ( | ) | < | > | - | _ | | | =
+                | : | ; | + | \ | * | ^ | [ | ] | ,
+                | . | ? | / | { | }
+
+<Diphthong> ::= #DIPHTHONG <SpecialChar> {<SpecialChar> | <null>}
+```
+
+---
+
+## 3. Data Types
+
+| Type | Description | Object Structure |
+|------|-------------|------------------|
+| **integer** | 32-bit integer | `[CLASS, value]` |
+| **boolean** | True/False (1/0) | `[CLASS, value]` |
+| **objectPointer** | Reference to Dale object | `[CLASS, pointer]` |
+| **object** | Base type (superclass of all) | `[CLASS, ...]` |
+| **code** | Executable Dale statement | `[CLASS, code]` |
+| **block** | Closure `($ ... $)` | `[CLASS, N, ivars, expr1, ..., exprN]` |
+| **anIndexableObject** | Array-like indexed object | `[CLASS, array]` |
+| **string** | Vector of characters | `[CLASS, c1, c2, ..., cN, NULL]` |
+| **error** | Internal error object | `[CLASS, ...]` |
+| **array** | Fixed-size array of objects | `[CLASS, elem1, elem2, ..., NULL]` |
+
+### 3.1 Object Memory Layout
+
+All objects have a **class pointer** at index `-1`.
+
+#### Integer Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (integer)
+ 0     Integer Value
+```
+
+#### Boolean Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (boolean)
+ 0     1 (true) or 0 (false)
+```
+
+#### String Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (string)
+ 0     Character 1
+ 1     Character 2
+ ...   ...
+ N     NULL terminator
+```
+
+#### Array Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (array)
+ 0     Size
+ 1     Element 1
+ 2     Element 2
+ ...   ...
+ N     NULL
+```
+
+#### ObjectPointer Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (objectPointer)
+ 0     Pointer to target object (0 = null)
+```
+
+#### Class Descriptor Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (CLASS)
+  0    Super Class Pointer
+  1    Instance Variables Pointer
+  2    Class Methods Pointer
+  3    External Methods Pointer
+  4    Internal Methods Pointer
+  5    Pointer to Class Print Name
+```
+
+#### Method Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (METHODS)
+  0    Number of Methods
+  1    Template Pointer (for this method)
+  2    Block Pointer (for this method)
+ ...   ...
+ N-1    Pointer to last Template
+ N      Pointer to last Block
+```
+
+#### Template Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (TEMPLATE)
+  0    Primary Message String Pointer
+  1    <NULL> | Parameter Print Name Pointer
+  2    Parameter Offset
+  3    Parameter Type Print Name Pointer
+  4    <NULL> | Message Delimiter Print Name Pointer
+  5    <NULL> | Second Parameter Print Name Pointer
+  6    Second Parameter Offset
+  7    Second Parameter Type Print Name Pointer
+ ...   ...
+ N      NULL (N=4n where n = number of parameters)
+```
+
+#### Block Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (BLOCK)
+  0    Number of Statements (N)
+  1    Block Instance Variables Pointer
+  2    Expression Pointer 1
+  3    Expression Pointer 2
+ ...   ...
+ N+2    Expression Pointer N
+```
+
+#### Expression Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (EXPRESSION)
+  0    Dale Syntactic Object Pointer 1
+  1    Dale Syntactic Object Pointer 2
+  2    Dale Syntactic Object Pointer 3
+ ...   ...
+ N      NULL
+```
+
+#### Variable Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (VARIABLE)
+  0    Variable Print Name Pointer
+  1    Offset
+```
+
+#### Parameter Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (PARAMETER)
+  0    Parameter Print Name Pointer
+  1    Offset
+```
+
+#### Instance Variables Object
+```
+Index  Content
+-----  --------
+-1     CLASS OBJECT POINTER (FIELD)
+  0    Search Pointer
+  1    Number of Variables
+  2    Pointer to Variable Print Name
+  3    Pointer to Variable Type Print Name
+  4    Offset
+ ...   ...
+ N-2    Pointer to last Variable Print Name
+ N-1    Pointer to last Var Type Print Name
+ N      Offset
+```
+
+---
+
+## 4. Operators and Messages
+
+### 4.1 Integer Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **addition** | `a + b` | `anInteger` | |
+| **subtraction** | `a - b` | `anInteger` | |
+| **multiplication** | `a * b` | `anInteger` | |
+| **division** | `a / b` | `anInteger` | Truncating |
+| **modulus** | `a !% b` | `anInteger` | |
+| **equality** | `a = b` | `aBoolean` | |
+| **inequality** | `a !!= b` | `aBoolean` | |
+| **less than** | `a < b` | `aBoolean` | |
+| **less or equal** | `a <= b` | `aBoolean` | |
+| **greater than** | `a > b` | `aBoolean` | |
+| **greater or equal** | `a >= b` | `aBoolean` | |
+| **increment** | `a ++` | `anInteger` | In-place |
+| **decrement** | `a --` | `anInteger` | In-place |
+| **print** | `a print` | `anInteger` | Prints value |
+| **lprint** | `a lprint` | `anInteger` | Prints with line feed |
+| **TimesRepeat:** | `n TimesRepeat: block` | `anObject` | `self` = integer |
+
+### 4.2 Boolean Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **new:** | `boolean new: value` | `aBoolean` | value = 1 or 0 |
+| **ifTrue:** | `bool ifTrue: block` | `anObject` | Executes block if true |
+| **ifFalse:** | `bool ifFalse: block` | `anObject` | Executes block if false |
+| **print** | `bool print` | `aBoolean` | Prints "True" or "False" |
+| **\|:** | `bool \| anotherBool` | `aBoolean` | Logical OR |
+
+### 4.3 ObjectPointer Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **new** | `objectName new` | `anObjectPointer` | Creates new instance |
+| **error:** | `obj error "msg"` | aborts | Displays error message |
+| **<-** | `ptr <- obj` | `anObjectPointer` | Assignment |
+| **\<any\>** | `ptr \<any\> message` | varies | Passes through to target |
+
+### 4.4 Array Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **new:** | `array new: size` | `anArray` | Creates fixed-size array |
+| **at:** | `arr at: index` | `anObject` | Retrieves element |
+| **put: at:** | `arr put: obj at: index` | `anObject` | Inserts element |
+
+### 4.5 String Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **creation** | `!" string !"` | `aString` | Note spaces around `!"` |
+| **print** | `str print` | `aString` | Prints without line feed |
+| **lprint** | `str lprint` | `aString` | Prints with line feed |
+
+### 4.6 Block Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **print** | `block print` | `code` | Prints Lisp representation |
+| **eval** | `block eval` | `anObject` | Executes the block |
+| **WhileTrue:** | `bool WhileTrue: block` | `anObject` | Loop (requires return in block) |
+
+### 4.7 Indexed Object Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **new:** | `objClass new: size` | `anIndexable` | Creates indexed object |
+| **basicAt:** | `obj basicAt: index` | `anObject` | Retrieves element |
+| **basicPut: at:** | `obj basicPut: obj at: index` | `anObject` | Inserts element |
+
+### 4.8 Code Operations
+
+| Message | Syntax | Result | Notes |
+|---------|--------|--------|-------|
+| **print** | `code print` | `code` | Prints Lisp representation |
+| **eval** | `code eval` | `anObject` | Executes the code |
+
+---
+
+## 5. Message Syntax and Semantics
+
+### 5.1 Message Structure
+
+```
+receiver primaryMessage [delimiter parameter]... [delimiter parameter]...
+```
+
+- **receiver**: The object receiving the message (primary)
+- **primaryMessage**: First keyword of the message
+- **delimiter**: Separates parameters (e.g., `at`, `put`)
+- **parameter**: Value(s) passed to the method
+
+### 5.2 Parameter Evaluation
+
+Parameters have **two forms**:
+
+| Form | Syntax | Description |
+|------|--------|-------------|
+| **Evaluated** | `$` | Evaluated before passing (by value) |
+| **Unevaluated** | `&` | Passed as unparsed Dale expression (for macros) |
+
+### 5.3 Assignment
+
+Assignment (`<-`) is the **only special message** in Dale:
+
+- **lvalue**: Instance variables, block variables, or lexpressions
+- **Not allowed**: Parameters cannot be assigned to
+- **Mechanism**: Sends `_asign` message to the variable's object
+- **Lexpressions**: Concatenates primary message with `_asign`
+
+### 5.4 Message Evaluation Rules
+
+1. **Single item**: Return the object
+2. **Primary message only**: Execute method block, substitute result
+3. **Primary + parameter**:
+   - If parameter is expression: evaluate it
+   - Push object on stack as parameter
+   - Execute method block
+   - Substitute result for new subject
+4. **Multiple messages**: Left-to-right reduction
+
+### 5.5 Macro Semantics
+
+When a method uses unevaluated parameters (`&`):
+
+1. Items between delimiters placed in expression object
+2. Macro block executes
+3. Evaluated parameters resolved
+4. Macro call replaced with returned expression
+5. Expression reevaluated
+
+---
+
+## 6. Class Definitions
+
+### 6.1 Complete Class Syntax
+
+```dale
+CLASS ClassName
+    SUPERCLASS : SuperClassName
+    INSTANCE VARIABLES :
+        varName1 .
+        varName2 TypeName .
+        varName3 ;
+        varName4 TypeName .
+    CLASS METHODS :
+        classMsg: $ param1
+            ($
+                RETURN result;
+            $)
+    INSTANCE METHODS :
+        EXTERNAL
+        instanceMsg: $ param1
+            ($
+                RETURN result;
+            $)
+        instanceMsg2: $ p1 put: $ p2
+            ($
+                varName1 <- p1;
+                return varName1;
+            $)
+        instanceMsg3
+            ($
+                RETURN varName1;
+            $)
+    ENDCLASS.
+```
+
+### 6.2 Class Components
+
+| Component | Required | Description |
+|-----------|----------|-------------|
+| `CLASS` | Yes | Keyword starting class definition |
+| `ClassName` | Yes | Identifier for the class |
+| `SUPERCLASS :` | No | Inherited class (default: `object`) |
+| `INSTANCE VARIABLES :` | No | Instance variable declarations |
+| `CLASS METHODS :` | No | Methods on the class object |
+| `INSTANCE METHODS :` | Yes | Instance method definitions |
+| `EXTERNAL` | No | Domain switch for instance methods |
+| `INTERNAL` | No | Domain switch for instance methods |
+| `ENDCLASS.` | Yes | Terminates class definition |
+
+### 6.3 Instance Variable Declarations
+
+```dale
+INSTANCE VARIABLES :
+    simpleVar .
+    typedVar Integer .
+    var1 ;
+    var2 String .
+    var3 .
+```
+
+- Each variable ends with `.`
+- Type annotations are optional (ignored in current implementation)
+- Multiple variables can be separated by `;`
+
+### 6.4 Method Definitions
+
+```dale
+methodName: $ paramName
+    ($
+        statements;
+        return result;
+    $)
+```
+
+Or with multiple parameters:
+
+```dale
+methodName: $ p1 put: $ p2
+    ($
+        statements;
+        return result;
+    $)
+```
+
+Or without parameters:
+
+```dale
+methodName
+    ($
+        statements;
+        return result;
+    $)
+```
+
+### 6.5 Domain Switches
+
+```dale
+INSTANCE METHODS :
+    EXTERNAL
+    method1: $ param
+        ($ ... $)
+    
+    INTERNAL
+    method2: $ param
+        ($ ... $)
+    
+    method3
+        ($ ... $)
+```
+
+- `EXTERNAL`: Default domain
+- `INTERNAL`: Internal methods (affects self/environment context)
+
+---
+
+## 7. Function Definitions
+
+### 7.1 Function Syntax
+
+```dale
+FUNCTION functionName
+    METHOD :
+        self-msg$ paramName
+            ($
+                statements;
+                return result;
+            $)
+END.
+```
+
+### 7.2 Function Characteristics
+
+- **Higher evaluation priority** than classes
+- **Single method only** (assumed message type)
+- **First parameter** is assumed (no primary message needed)
+- **Usage**: `functionName argument` or `functionName(argument)`
+
+### 7.3 Example
+
+```dale
+FUNCTION cos
+    METHOD :
+        self-msg$ x
+            ($
+                return (1 - (.5 * (x ^ 2)) + ((1 / 6) * (x ^ 3)) -
+                      ((1 / 24) * (x ^ 4)) + ((1 / 120) * (x ^ 5)));
+            $)
+END.
+```
+
+Usage:
+```dale
+a <- 5 + cos(angle) - 1;
+```
+
+---
+
+## 8. Blocks and Closures
+
+### 8.1 Block Syntax
+
+```dale
+($ {VAR var1 . VAR var2 TypeName .} statements $)
+```
+
+### 8.2 Block Components
+
+| Component | Required | Description |
+|-----------|----------|-------------|
+| `($` | Yes | Block start |
+| `VAR` declarations | No | Block-local variables |
+| `statements` | Yes | One or more expressions |
+| `$)` | Yes | Block end |
+
+### 8.3 Block Examples
+
+```dale
+($
+    var a; b.
+    a <- 3;
+    b <- 5;
+    a < b print;
+    a print;
+    return b;
+$) eval;
+```
+
+### 8.4 Block Execution
+
+- Blocks are **first-class objects** (can be passed as parameters)
+- Execute with `eval` message
+- **Closure**: Captures environment at creation time
+- **`self`** refers to receiver of enclosing message
+- **`super`** not implemented (planned)
+
+### 8.5 Control Structures via Blocks
+
+```dale
+"Loop example"
+5 TimesRepeat: ($
+    "hello" lprint;
+$);
+
+"Conditional"
+condition ifTrue: ($
+    "condition is true" lprint;
+$) ifFalse: ($
+    "condition is false" lprint;
+$);
+
+"While loop"
+condition WhileTrue: ($
+    body statements;
+    condition update;
+$);
+```
+
+---
+
+## 9. Variable Types and Scoping
+
+### 9.1 Variable Types
+
+| Type | Default | Description |
+|------|---------|-------------|
+| **Untyped** | `object` | Pointer to any Dale object |
+| **Typed** | N/A | Type-checked on assignment (not enforced in current version) |
+
+### 9.2 Special Variables
+
+| Variable | Description |
+|----------|-------------|
+| `self` | Object receiving the message |
+| `super` | (Not implemented) Superclass of `self` |
+
+### 9.3 Variable Lookup
+
+1. **Block variables**: Innermost block where variable is declared
+2. **Instance variables**: Searched through object's class hierarchy
+3. **Global**: Not explicitly supported in this version
+
+### 9.4 Type Checking
+
+- Type declarations are **ignored** in current implementation
+- All untyped variables default to `objectPointer`
+- Type checking planned for compiled version
+
+---
+
+## 10. Diphthongs and Lexical Tokens
+
+### 10.1 Predefined Diphthongs
+
+| Diphthong | Description |
+|-----------|-------------|
+| `(` | Left parenthesis |
+| `)` | Right parenthesis |
+| `;` | Statement terminator |
+| `&` | Unevaluated parameter indicator |
+| `$` | Evaluated parameter indicator |
+| `($` | Block start |
+| `$)` | Block end |
+| `<-` | Assignment operator |
+
+### 10.2 User-Defined Diphthongs
+
+```dale
+#DIPHTHONG ++
+#DIPHTHONG +
+```
+
+- Diphthongs are **surrounded by whitespace** before parsing
+- Cannot be part of variable names or keywords
+
+### 10.3 Keywords and Identifiers
+
+```
+Keyword ::= nonnumeric {nonnumeric / digit}*
+Identifier ::= letter {letter | digit | _ | -}*
+```
+
+Examples:
+- `ifTrue:` - valid keyword
+- `TimesRepeat:` - valid keyword
+- `myVar` - valid identifier
+- `my-var` - valid identifier
+- `my_var` - valid identifier
+
+---
+
+## 11. Labels and Goto
+
+### 11.1 Label Syntax
+
+```dale
+LABEL: myLabel
+GOTO myLabel
+```
+
+### 11.2 Label Lookup
+
+- Labels searched from **innermost block** to **outermost block**
+- First matching label is used
+
+---
+
+## 12. Primitives
+
+### 12.1 Primitive Syntax
+
+```dale
+methodName: $ param
+    PRIMITIVE (lispExpression)
+```
+
+### 12.2 Available Primitives
+
+| Primitive | Description |
+|-----------|-------------|
+| `GetClass(ObjectPointer)` | Returns class description pointer |
+| `GetField(ObjectPointer, FieldOffset)` | Returns field value |
+| `StoreField(ObjectPointer, FieldOffset, Value)` | Stores value in field |
+| `Execute(ObjectPointer)` | Executes code object |
+| `NewInstance(ClassObjectPointer, NumberOfFields)` | Creates new object |
+
+### 12.3 Primitive Examples
+
+```dale
++$ anInteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (PLUS2 (_GetField self 1) (_GetField anInteger 1)))
+
+print
+    primitive (progn (PRINTF "%w%n" (_GetField self 1)) self)
+```
+
+---
+
+## 13. User Options
+
+### 13.1 Option Messages
+
+| Message | Description |
+|---------|-------------|
+| `?` | Print all system options |
+| `object-print-off` | Print only integers and booleans |
+| `object-print-on` | Print vector representation |
+| `trace-off` | Turn tracing off |
+| `trace-on` | Turn tracing on |
+
+### 13.2 Usage
+
+```dale
+option object-print-off;
+```
+
+---
+
+## 14. Complete Examples
+
+### 14.1 Class Definition
+
+```dale
+CLASS RegularPolygon
+    SUPERCLASS : Object
+    INSTANCE VARIABLES :
+        sides; center; radius; plotter.
+
+    CLASS METHODS :
+        sides:$ s radius:$ r
+            ($
+                RETURN SELF new sides: s radius: r center:
+                             (Screen ActiveWindow frame center)
+            $)
+
+    INSTANCE METHODS :
+        EXTERNAL
+        sides:$ s radius:$ r center:$ c
+            ($
+                sides <- s;
+                center <- c;
+                radius <- r;
+                plotter <- pen width 2;
+            $)
+
+        center?
+            ($
+                RETURN center;
+            $)
+
+    ENDCLASS.
+```
+
+### 14.2 Creating and Using Objects
+
+```dale
+"Create instance"
+ourPolygon <- RegularPolygon sides: 4 radius: 2;
+
+"Use object"
+ourPolygon center?;
+```
+
+### 14.3 Function Definition
+
+```dale
+FUNCTION sin
+    METHOD :
+        self-msg$ x
+            ($
+                return x - ((x ^ 3) / 6) + ((x ^ 5) / 120);
+            $)
+END.
+```
+
+### 14.4 Block and Loop
+
+```dale
+"TimesRepeat loop"
+3 TimesRepeat: ($
+    "hello" lprint;
+$);
+
+"While loop"
+counter <- 0;
+(counter < 10) WhileTrue: ($
+    counter print;
+    counter <- counter + 1;
+$);
+```
+
+### 14.5 Array Operations
+
+```dale
+"Create array"
+arr <- array new: 5;
+
+"Access and modify"
+arr put: 42 at: 1;
+val <- arr at: 1;
+```
+
+### 14.6 String Operations
+
+```dale
+"Create string (note spaces around !\")
+str <- !" hello world !";
+
+"Print"
+str print;
+str lprint;
+```
+
+### 14.7 Conditional Logic
+
+```dale
+"ifTrue/ifFalse"
+condition ifTrue: ($
+    "condition is true" lprint;
+$) ifFalse: ($
+    "condition is false" lprint;
+$);
+
+"Logical OR"
+result <- bool1 | bool2;
+```
+
+### 14.8 Complex Example
+
+```dale
+CLASS Stack
+    SUPERCLASS : Object
+    INSTANCE VARIABLES :
+        items; top.
+
+    CLASS METHODS :
+        new
+            ($
+                RETURN SELF new items: (array new: 100) top: 0;
+            $)
+
+    INSTANCE METHODS :
+        EXTERNAL
+        new
+            ($
+                RETURN SELF items: (array new: 100) top: 0;
+            $)
+
+        push:$ item
+            ($
+                top <- top + 1;
+                items put: item at: top;
+                RETURN self;
+            $)
+
+        pop
+            ($
+                var result.
+                result <- items at: top;
+                items put: nil at: top;
+                top <- top - 1;
+                RETURN result;
+            $)
+
+        isEmpty
+            ($
+                RETURN top = 0;
+            $)
+
+        size
+            ($
+                RETURN top;
+            $)
+
+    ENDCLASS.
+
+"Usage"
+stack <- Stack new;
+stack push: 42;
+stack push: 43;
+val <- stack pop;
+```
+
+---
+
+## 15. Environment and Usage
+
+### 15.1 Loading Dale
+
+```lisp
+"Load Dale in NMODE"
+nmode
+(dskin "dale-primitives.sl")  ; Compile and load
+```
+
+### 15.2 Executing Dale Code
+
+```lisp
+"Enclose in (i) ... # and type {lisp-e}"
+(i) 5 + 6 print;# {lisp-e}
+```
+
+### 15.3 NMODE Editor
+
+- **nmode**: Emacs-like editor for Dale
+- **{lisp-e}**: Execute Lisp expression at cursor
+- **Cursor placement**: Important for execution
+
+---
+
+## 16. Semantic Rules
+
+### 16.1 Message Evaluation
+
+1. Get template for primary message from subject's class
+2. If only primary message: execute block, substitute result
+3. If primary + parameter:
+   - Evaluate parameter expression
+   - Push on stack as parameter
+   - Execute block
+   - Substitute result for new subject
+4. Continue with remaining messages (left-to-right)
+
+### 16.2 Macro Expansion
+
+1. Place unevaluated parameters in expression objects
+2. Execute macro block
+3. Resolve evaluated parameter references
+4. Replace macro call with returned expression
+5. Reevaluate expression
+
+### 16.3 Variable Assignment
+
+- Only instance variables, block variables, or lexpressions can be assigned
+- Parameters cannot be assigned
+- Assignment sends `_asign` message to variable's object
+
+### 16.4 Inheritance
+
+- Subclasses inherit methods and instance variables from superclasses
+- Instance variables appended in inheritance order
+- Method search: subclass first, then superclass chain
+
+---
+
+## 17. Limitations and Notes
+
+### 17.1 Current Limitations
+
+- **Type checking**: Not enforced (declarations ignored)
+- **super**: Not implemented
+- **Internal environment**: Not supported
+- **Control environment**: Not implemented
+- **Compilation**: Not available (interpreted only)
+
+### 17.2 Future Features
+
+- Type checking and enforcement
+- `super` keyword implementation
+- Compiled code generation
+- Multiple inheritance
+- Better error messages
+- Improved string handling
+
+### 17.3 Known Issues
+
+- `self` in `TimesRepeat:` refers to integer, not outer self
+- String creation requires spaces around `!"`
+- Type declarations have no effect
+- No garbage collection mentioned
+
+---
+
+## 18. Quick Reference Card
+
+### 18.1 Creating Objects
+
+```dale
+obj <- ClassName new;
+obj <- ClassName new: size;
+```
+
+### 18.2 Sending Messages
+
+```dale
+receiver message;
+receiver message: param;
+receiver message: p1 put: p2;
+```
+
+### 18.3 Control Structures
+
+```dale
+"Conditional"
+condition ifTrue: ($ ... $) ifFalse: ($ ... $);
+
+"Loop"
+n TimesRepeat: ($ ... $);
+condition WhileTrue: ($ ... $);
+
+"Function call"
+functionName argument;
+```
+
+### 18.4 Blocks
+
+```dale
+($ var x . x <- 5; x + 1 $) eval;
+```
+
+### 18.5 Assignment
+
+```dale
+var <- value;
+instanceVar <- value;
+```
+
+### 18.6 Return
+
+```dale
+return value;
+```
+
+---
+
+## 19. Glossary
+
+| Term | Definition |
+|------|------------|
+| **Dale** | Object-oriented language based on Smalltalk |
+| **Object** | Entity with methods and instance variables |
+| **Message** | Request sent to an object |
+| **Primary Message** | First keyword in a message |
+| **Delimiter** | Keyword separating parameters |
+| **Block** | Closure `($ ... $)` |
+| **Diphthong** | Special multi-character token |
+| **Primitive** | Lisp-implemented method |
+| **Template** | Method signature definition |
+| **Class** | Object template/blueprint |
+| **Function** | Single-method object with assumed message |
+| **Macro** | Method with unevaluated parameters |
+| **Self** | Object receiving the message |
+| **Instance Variable** | Object storage |
+| **Inheritance** | Reusing superclass methods/variables |
+
+---
+
+## 20. Implementation Details
+
+### 20.1 PSL (PDP-10 Lisp) Integration
+
+- Dale is implemented in PSL
+- Primitives use PSL functions
+- Objects are PSL vectors
+- Code is PSL expressions
+
+### 20.2 Object Creation
+
+```lisp
+"Create new object"
+(_NewInstance ClassObjectPointer NumberOfFields)
+
+"Store in field"
+(_StoreField ObjectPointer FieldOffset Value)
+
+"Get from field"
+(_GetField ObjectPointer FieldOffset)
+```
+
+### 20.3 Class Hierarchy
+
+```
+object
+  ├── integer
+  ├── boolean
+  ├── array
+  ├── string
+  ├── objectPointer
+  ├── code
+  ├── block
+  ├── indexedObject
+  └── option
+```
+
+---
+
+*This reference covers Dale v1.0 as documented in the original source files. Some features may not be fully implemented in the current version.*

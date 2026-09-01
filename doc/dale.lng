@@ -1,0 +1,256 @@
+This manual describes the features that have been implemented in
+Dale  as  well  as  documenting  future  changes  that should be
+implemented.
+
+
+DATA TYPES
+
+Objects  in  Dale  are  tagged  with  a  type that is actually a
+pointer  to  the  operations that are legal for that type.  Dale
+supports  the creation of user data types by using the following
+primitive  types.   { integers,arrays,object  pointers,booleans,
+objects,code,block,anIndexableObject,strings and error }.
+
+Objects are any Dale object.  It is the super class of the other
+types.    code  is  an  object which can be executed.  It can be
+thought  of  a a Dale statement.  block is an Dale block of code
+represented  as  ($ some statements $).  anIndexableObject is an
+object that has an array component that can be indexed.    Error
+is a special internal object used for errors.
+
+
+VALID OPERATIONS ON INTEGERS (3/9/84)
+
+addition +  (anInteger + anInteger) -> anInteger
+
+subtraction  -  (anInteger - anInteger) -> anInteger
+
+multiplication *  (anInteger * anInteger) -> anINteger
+
+division /  (anInteger / anInteger) -> anInteger
+
+modulus !%  (anInteger !% anInteger) -> anInteger
+
+equality =  (anInteger = anInteger) -> aBoolean
+
+inequality !!=  (anInteger !!= anInteger) -> aBoolean
+
+lessthan <  (anInteger < anInteger) -> aBoolean
+
+lessthan or equal <=  (anInteger <= anInteger) -> aBoolean
+
+greaterthan >  (anInteger > anInteger) -> aBoolean
+
+greaterthan or equal >=  (anInteger >= anInteger) -> aBoolean
+
+increment ++   (anInteger ++) -> anInteger
+
+decrement --  (anInteger --) -> anInteger
+
+printing print (anInteger print) -> anINteger
+
+definateloops  TimesRepeat:  (anInteger  TimesRepeat:  block) ->
+                              anObject
+    (Note  that self  refers to the  integer  not to self of the
+     outer environment {to be changed in the future.})
+
+
+VALID OPERATIONS ON CODE (3/12/84)
+
+printing print  (block print) -> code  
+    (This  prints out  the lisp representation of the code.   In
+     the  future  this  should be changed to  print out the Dale
+     listing of source.)
+
+evaluation eval  (block eval) -> anObject
+
+looping WhileTrue: (aBlock WhileTrue: block) -> anObject
+    (*** NOTE ***   The  block must  contain  a explicit  return
+     statement that returns a boolean value.  Forgetting this is
+     a source of many errors.)
+
+
+VALID OPERATIONS FOR OBJECTS AND OBJECTPOINTERS (3/12/84)
+
+creation new  (objectName new) -> anObjectPointer 
+
+errors error  (anObject error astring)       aborts  program and
+               displays the given message.
+
+assignment   <-     (anObjectPointer   <-   anObjectPointer)  ->
+                     anObjectPointer
+
+
+VALID OPERATIONS ON INDEXEDOBJECTS (3/12/84)
+  (also see operations on objects above)
+
+creation new: (objectName new: anInteger) -> anIndexable
+
+access basicAt: (anIndexableObject basicAt: anInteger) -> 
+                anObject
+
+access basicput: at: (anIndexableObject basicput: anObject
+                     at: anInteger) -> anObject
+
+
+VALID OPERATIONS ON BOOLEANS (3/9/84)
+
+creation new: (boolean new: anInteger) -> aBoolean
+
+conditionals ifTrue:  (aBoolean ifTrue: block) -> anObject
+
+conditionals ifFalse:  (aBoolean ifTrue: block) -> anObject
+
+printing print (aBoolean print) -> aBoolean
+
+
+VALID OPERATIONS ON ARRAYS (3/9/84)
+
+creation new:  (array new: anInteger) -> anArray
+
+retrieval at:  (anArray at: anInteger) -> anObject
+
+insertion  put:  at:    (anArray put: anObject at: anInteger) ->
+                        anObject
+
+
+VALID OPERATIONS ON STRINGS (3/9/84)
+
+creation !" !"  (string !" ascii characters !") -> aString 
+   (Note that their must be a space after the first " and before
+    the second " since the " can be part of a Dale message name)
+
+printing print  (aString print) -> aString
+   (prints with out line feed.)
+
+printing lprint (aString print) ->aString 
+   (prints with a line feed.)
+
+
+VALID MESSAGES TO OPTION (3/10/84)
+
+question ?  (option ?) -> 1
+   This prints a list of all system options at the present time.
+
+
+SPECIAL VARIABLES
+
+  Self is a special variable that refers to the object receiving
+the  message.    By  using  self  that object  is searched for a
+matching  primary  message  then  its  super  classes.  A second
+special  variable should be super which is just like self except
+that the  superclasses of self  are searched  and not the object
+itself.   This in not  implemented  as yet but  should be in the 
+future.  By implementing super one can define a primary  message
+name  that is  the same  as  the  superclass's and still use the
+super classes method since the  new definition will not be found
+in the  search.   This can be  gotten around  by using an unique
+message name.
+
+
+ENVIRONMENTS
+
+  The  internal  environment  is  as  yet  unsupported.  A third
+environment   should  also  be  created  called  Control.   This
+environment  is  just  like the external environment except that
+self   and  the  environment  contexts  will  not  refer  to the
+receiving  object  but  instead  will refer to the outer object.
+This  allows control structures to behave like we expect control
+structures to behave, by not introducing a new environment.
+
+
+TYPES
+
+  Type  checking  and  generation  is  as yet unsupported.  Type
+declarations are ignored and a objectpointer type is assumed. In
+the  future type checking should be supported especially if dale
+is  compiled  since type checking at compile time can catch some
+user  errors  and  type  information can be used to produce more
+efficient code.
+
+
+USER OPTIONS
+
+  The user can change  how top  level evaluation  prints out the
+returning results.    Eithor  the  vector  representation of the
+object  is  printed  or only  integers  and  boolean  values are
+printed.
+  
+   Option  object-print-off;  % Prints integers & boolean values
+   Option Object-Print-On; %Prints out the vector representation
+                           %This is good when debuging packages.
+
+
+USING DALE  (as of January 20 1984.)
+
+  Dale   is   implemented  in  PSL  and  must  be  used  in that
+environment after being loaded.
+
+  To use  Dale on  the UG machine  (Unix), at the > prompt enter
+the nmode editor.
+
+1> nmode
+
+You  will  now  be  in nmode which is an editor much like emacs.
+Then type in (dskin "dale-primitives.sl") {lisp-e} this compiles
+and loads in dale.   Lisp-e  is like the meta  command in emacs.
+It executes the lisp  expression at  the Cursor.  (see the NMODE
+manual for more details)
+
+You  are  now  ready to try dale out.  To do so you must enclose
+all dale  statements in (i) <statements> #.  Then to execute it,
+place the CURSOR at the (i) and type {lisp-e}.   For example try
+these:
+
+(i) 5 + 6 print;# {lisp-e}
+11
+[3 INTEGER 11]
+NIL
+% notice that the !" must have a space before and after it.
+(i) 3 TimesRepeat: ($ string !" hello !" lprint;$);# {lisp-e}
+HELLO
+HELLO
+HELLO
+[3 INTEGER 3]
+NIL
+(i)
+class test
+  superclass: object
+  instance methods:
+    tryit aNumber
+      $(
+         string !" your number is_ !" print;
+         return aNumber print;
+       $)
+endclass.# {put cursor at (i) then  lisp-e}
+NIL
+(i) test new tryit 5;# {lisp-e}
+YOUR NUMBER IS_5
+[3 INTEGER 5]
+NIL
+(i)
+$(
+    var a;b.
+  a <- 3;
+  b <- 5;
+  a < b print;
+  a print;
+  return b;
+$) eval;#  {put cursor at (i) then  lisp-e}
+TRUE
+3
+[3 OBJECTPOINTER [3 INTEGER 5]]
+NIL
+(i)
+function foo
+  method:
+    self-msg$ anObject
+    ($ anObject print; return 1; $)
+end. {put cursor at (i) then Lisp-e}
+NIL
+(i) 3 + foo(7);# {lisp-e}
+7
+[3 INTEGER 4]
+NIL
+
+

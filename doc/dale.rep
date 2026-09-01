@@ -1,0 +1,50 @@
+   Length            Length            Length            Length
+     5                 4                 7                 3
+Class Descr.      Class Descr.      Class Descr.      Class Descr.
+ DICTIONARY          STRING           METHODS           Integer
+    Name
+                   'F    'o                                2
+   Descr.
+                   'o    nil                             Length
+    Link                                                   4
+                     Length                           Class Descr.
+                       8                                 STRING
+   Length         Class Descr.
+     5               CLASS                              'M    's
+Class Descr.      Supper Class
+ DICTIONARY                                             'g    nil
+    Name             Fields            Length
+ a pointer                               ?               Length
+   Descr.         ClassMethods      Class Descr.           ?
+    nil               nil               CODE          Class Descr.
+    Link          Extn Methods                            CODE
+
+                  Intn Methods
+   Length             nil              Length            Length
+     5                Name               5                 5
+Class Descr.                        Class Descr.      Class Descr.
+ DICTIONARY                            FIELD             STRING
+    Name             Length
+ a pointer             4                               '[     arg
+   Descr.         Class Descr.
+ a pointer           STRING                            '.     arg
+    link
+                   'v     'a                           ']     nil
+                                       Length
+   Length          'l     nil            3
+     5                              Class Descr.         Length
+Class Descr.         Length            INTEGER             3
+ DICTIONARY            5                              Class Descr.
+    Name          Class Descr.           2               STRING
+
+   Descr.                              Length          'A    nil
+                       5                 3
+    link                            Class Descr.
+    nil                23              STRING
+
+                       12             'B    nil
+
+
+
+
+

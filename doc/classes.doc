@@ -1,0 +1,45 @@
+                          THE FOLDING OF CLASS TREES
+
+By linking superclass declariations to the superclass which it
+references (ie. a doubly linked relationship) the supperclass
+has knowledge of its subclasses or siblings.
+This knowledge can then be used to support abstractions at a much higher
+level.  The superclass can represent the most abstract level or
+classification of its data type and have knowledge of its siblings which
+respresent more implementational information, thus a general abstraction
+can be quirred to find a implentation of the general abstraction that best
+fits the need of a specific environment that uses that abstraction.  This
+provides a browser for managing the languastical environment a full 
+classification scheme.  In an development environment, implementation
+descisions based on performance can be pushed off while the development
+is in progress by using the top level class abstraction which arbitrarly
+chosses one of its offspring as the implementation until a descision can
+be made as to what implementation is most efficent.  The tree can be
+partitioned or pruned by choising a subset of its siblings that
+posses the nessisary capibilities or functions which are called on
+the superclass to perform. Not all implementations or subclasses may
+support the same capibilities or manipulations.  It is envisioned however
+that all subclass will share some capibilities which are
+considered to be essentional capibilities of the entire abstract class.
+
+	In the case of marrages between class trees (this
+occures when a class inhererts attributes from more than one superclass) the
+parents involved will have knowledge of the marrage.  When one of the
+parents is queried it can refer to its pardners and to its relationship 
+with its class partner based on the offspring that have the parrents in
+common.  For example the class of human transportation has many
+subclassifications of which cars and trucks are two of them.
+Their immediate parrents might be wheeled vehicles.
+A class of mamimals might contain horses.  A horse
+how ever inherents transportational capibilities thus it has more than
+one parrent classification.  If the class mamimals has knowlege of its
+marrage with transportation then it can be quired as to what instances
+of it support transportation.  This a new classification is implied that
+of mamimal transportation.  The marrage knowledge need not be implisit in
+the effected parent classes but can be extracted by traversals of the
+class nets.  The implied classification also need not be implisit but
+rather a consiequence of a marrage.
+
+  The class folding in effect forms a relational data base of procedures
+acting on specific data types that is partitioned by data abstraction and
+abstraction levels.

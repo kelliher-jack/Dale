@@ -1,0 +1,200 @@
+Class Object
+
+	+-------------+
+	|     -1      |  OBJECT CLASS POINTER
+	+-------------+
+	|      0      |  Super Class Pointer
+	+-------------+
+	|      1      |  Instance Variables Pointer
+	+-------------+
+	|      2      |  Class Methods Pointer
+	+-------------+
+	|      3      |  External Methods Pointer
+	+-------------+
+	|      4      |  Internal Methods Pointer
+	+-------------+
+	|      5      |  Pointer to Classes Print Name
+	+-------------+
+
+
+Instance Variables Object
+
+	+-------------+
+	|     -1      |  OBJECT CLASS POINTER
+	+-------------+
+	|      0      |  Search Pointer
+	+-------------+
+	|      1      |  Number of Variables
+	+-------------+
+	|      2      |  Pointer to Variable Print Name
+	+-------------+
+	|      3      |  Pointer to Variables Type Print Name
+	+-------------+
+	|      4      |  Offset
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|     N-2     | Pointer to last Variable Print Name
+	+-------------+
+	|     N-1     | Pointer to last Var Type Print Name
+	+-------------+
+	|      N      | Offset
+	+-------------+
+Methods Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Number of Methods
+	+-------------+
+	|      1      |  Template Pointer
+	+-------------+
+	|      2      |  Block Pointer
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|     N-1     |  Pointer to last Template
+	+-------------+
+	|      N      |  Pointer to last Block
+	+-------------+
+
+
+Template Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Primary Message String Pointer
+	+-------------+
+	|      1      |  <NULL> | Parameter Print Name Pointer
+	+-------------+
+	|      2      |           Parameter Offset
+	+-------------+
+	|      3      |           Parameter Type Print Name Pointer
+	+-------------+
+	|      4      |  <NULL> | Message Delimeter Print name Pointer
+	+-------------+
+	|      5      |  <NULL> | Second Parameter Print Name Pointer
+	+-------------+
+	|      6      |           Second Parameter Offset
+	+-------------+
+	|      7      |           Second Parameter Type Print Name Pointer
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|      N      |   NULL   N=4n where n is the number of parameters
+	+-------------+          N=1 no parameters or
+                             N=4n+1 if an ending dilimiter is present
+Block Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Number of Statements N
+	+-------------+
+	|      1      |  Block Instance Variables Pointer
+	+-------------+
+	|      2      |  Expression Pointer
+	+-------------+
+	|      3      |  Expression Pointer
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|     N+2     |  Expression Pointer
+	+-------------+
+
+
+Expression Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Dale Syntatic Object Pointer
+	+-------------+
+	|      1      |  Dale Syntatic Object Pointer
+	+-------------+
+	|      2      |  Dale Syntatic Object Pointer
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|      N      |  NULL
+	+-------------+
+
+
+Goto Object
+
+	+-------------+
+	|     -1      |  CLASS POINTER POINTER 
+	+-------------+
+	|      0      |  Label Print Name Pointer
+	+-------------+
+	|      1      |  Offset
+	+-------------+
+
+Label Object
+
+	+-------------+
+	|     -1      |  CLASS POINTER POINTER 
+	+-------------+
+	|      0      |  Label Print Name Pointer
+	+-------------+
+	|      1      |  Offset
+	+-------------+
+
+
+Variable Object
+
+	+-------------+
+	|     -1      |  CLASS POINTER POINTER 
+	+-------------+
+	|      0      |  Variable Print Name Pointer
+	+-------------+
+	|      1      |  Offset
+	+-------------+
+
+
+Parameter Object
+
+	+-------------+
+	|     -1      |  CLASS POINTER POINTER 
+	+-------------+
+	|      0      |  Parameter Print Name Pointer
+	+-------------+
+	|      1      |  Offset
+	+-------------+
+
+
+Integer Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Integer Value
+	+-------------+
+
+String Object
+
+	+-------------+
+	|     -1      |  CLASS OBJECT POINTER
+	+-------------+
+	|      0      |  Character Value
+	+-------------+
+	|      1      |  Character Value
+	+-------------+
+	|      .      |
+	|      .      |
+	|      .      |
+	+-------------+
+	|      N      |  NULL
+	+-------------+
+

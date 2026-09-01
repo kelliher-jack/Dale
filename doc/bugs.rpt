@@ -1,0 +1,16 @@
+There  is  only  one  known  actual  bug.    Instance  variable
+references are not resolved correctly when they are contained in
+a  block.  The remedy at this time is initialize local variables
+to  instance  variable  and use only them inside the block.  The
+error  manifests  itself  with  An  attempt do do "binding" on '
+(_IVAR ...) or a attempt  to (ADD2 nil 1).  
+
+Related  to  this  bug is the unability to reference self as you
+would  like in a control structure.  One remedy to both problems
+is to not change contexts or environments when entering a block.
+However  this may not always be desirable.  The other possiblity
+is  to  have a CONTROL environment similar to INTERNAL, EXTERNAL
+and  CLASS  methods.    When  a method is defined in the control
+section, blocks that it will manipulate will enter a new context
+or  environment  when  executed.    This  would  be the preferred
+solution.  

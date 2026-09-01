@@ -1,0 +1,28 @@
+Primitive implementation functions:
+
+GetClass(ObjectPointer) 
+  returns  the  pointer to the class description of the argument
+object.
+
+GetField(ObjectPointer,FieldOffset) 
+  returns  the  contents  of  the  field indexed by FieldOffset.
+This reference may be an integer or a pointerto an object.  Note
+that the field begins with index 1.
+
+StoreField(ObjectPointer,FieldOffset,Value) 
+  returns  the  argument  ObjectPointer  after  storing the give
+Value  in  the  field indexed lby FieldOffset.  The field offset
+must  range  from  1  to  the  number of fields created for that
+object.
+
+Execute(ObjectPointer) 
+  returns  results  of from the execution of the code pointed to
+by  ObjectPointer.  A check is made to insure that the object to
+be executed is of type CODE.
+
+NewInstance(ClassObjectPointer NumberOfFields)
+
+  creates   a   new   object   with  its  class  pointer  set to
+ClassObjectPointer and NumberOfFields allocated for it.  Returns
+the pointer to the new object. 
+

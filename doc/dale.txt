@@ -1,0 +1,244 @@
+DALE  is  a data abstraction or object oriented language.  It is
+based  on  the concept of objects which interact with each other
+only by sending and receiving messages.  Each object consists of
+a  storage  section and a set of methods that manage and operate
+on  objects in the storage section.  An expression in DALE is an
+object  name  followed  by  a message parameter clause.  When an
+expression  is evaluated the message is sent to the object along
+with any parameters.  For  example:
+
+     5       +        3     
+     ^       ^        ^     
+     |       |        |     
+    the     the      the     
+  object  primary parameter     
+          message
+
+5  is  an  integer and receives the message '+' it then adds the
+parameter 3 to it's self and returns 8 as the result.
+
+The  message  template  that  would  be used to define the above
+expression method would be as follows:
+
+     +     $          AnInteger  ($ code to do addition $)   
+     ^     ^              ^   
+     |     |              |   
+    the    parameter  parameter   
+  message    type         ID   
+           indicator
+
+where  '+' is the message to add integer objects, '$' tells DALE
+to evaluate the following parameter which is passed as a value.
+
+For a second example:
+
+    list     at      index     put     element     
+      ^       ^        ^        ^         ^     
+      |       |        |        |         |     
+     the     the     first      a       second     
+    object primary parameter  message  parameter     
+           message           delimiter
+
+List  is  a  list  type object and receives the message 'at put'
+with  the  parameters index and element.  It then places element
+at the indexed position.
+
+Expression  parsing  is  done  within  the context of the object
+receiver  and  parameters  are  normally evaluated and passed as
+values.
+
+For example:
+
+  list at 2 + index put (index * 3 - 1)
+
+has  two  parameter  '2  +  index' and 'index * 3 - 1' These are
+evaluated   as   expressions   and   their  values  used  as the
+parameters.    The  parenthesis  are  needed to prevent only the
+index  from being used as the parameter and '*' being applied to
+the resultant list value.
+
+The defining message template for list would be as follows:
+
+     at$ placement put$ value   
+         ($ code to place value at placement in a list $)
+
+With  'at'  being  the  primary  message  and  'put'  a  message
+delimiter.    Placement and value are then the parameters to the
+method.
+
+Defining DALE Objects.
+
+To  define an DALE object a class template or type definition is
+created.  With in the definition instance variables are defined.
+These  hold  the  values for a variable of a given class or type
+and  any  temporary  or intermediate values used in computing or
+accessing  values.    The  second  portion of a class definition
+defines  the  methods or procedures that manipulate the instance
+variables.  Each method is headed by a message template.  When a
+message matches the primary message of the template, that method
+is  then  envoked.    For example a class that defines a regular
+polygon might be defined as follows:
+
+    CLASS RegularPolygon    
+      SUPERCLASS: Object    
+      INSTANCE VARIABLES:    
+        sides; center; radius; plotter.
+
+      CLASS METHODS:
+
+        sides:$ s radius:$ r
+
+          ($    
+            RETURN SELF new sides: s radius: r center:   
+                             (Screen  ActiveWindow frame center)
+          $)   
+    
+      INSTANCE METHODS:
+
+        sides:$ s radius:$ r center:$ c
+
+          ($      
+            sides <- s;      
+            center <- c;      
+            radius <- r;      
+            plotter <- pen width 2;      
+          $)      
+                
+        center?      
+          ($      
+            RETURN center;      
+          $)
+
+    ENDCLASS.
+
+Using  the above definition for RegularPolygons one might create
+an instance of a RegularPolygon and assign it to a variable, say
+ourPolygon, as follows:
+
+    OurPolygon <- RegularPolygon sides: 4 radius: 2;
+
+RegularPolygon is the class  object  and it recieves the message
+sides:  which  matches  its  only class method and it is envoked
+with  the parameters 4 and 2.  It then returns a new instance of
+RegularPolygon  which  is  a square  of radius 2.   The variable
+OurPolygon now contains a square with radius 2. 
+
+Since  a  class template is also a dale object it is represented
+internally  the same as any other object.  Thus a class template
+is  simply an English description of an instance of an object of
+type CLASS.  This allow a more convenient description form than:
+  CLASS NEW NAME: some_name SUPERCLASS: some_class ... etc.
+
+As  mentioned  before  parameters in dale are normally passed by
+value  however  when defining a message (parameter) template the
+usual '$' terminator that follows a message name can be replaced
+by  a  '&'  terminator  with  specifies  that  the corresponding
+parameter is  not to be evaluated but passed as a string.
+
+Dale Functions
+
+An alternate form of instance method is the assumed message type
+in  which only one method is allowed and the message is assumed.
+This  allows  for functions to be implemented in the language as
+they are normally used.  The sin of x can then be written as SIN
+x  or  SIN(x) since the first parameter following the object sin
+is assumed to the parameter to the function.  To build functions
+another  object  called  function builds a Dale function in just
+the  same  way  that  classes  are  built.    Using the function
+defination a object of type function is created.  Let us look at
+an example of a function definition in Dale.
+
+    FUNCTION cos
+
+      Method: 
+        self-msg$ x 
+          ($ 
+            return (1 - ( .5 * (x ^ 2)) + ((1 / 6)  * (x ^ 3)) -
+                  ((1 / 24) * (x ^ 4)) + ((1 / 120) * (x ^ 5))); 
+          $)
+    end.
+
+Functions  have  a  higher evaluation priority and are evaluated
+before  classes.   As an example hear is an expression using the
+cos function:
+
+    a <- 5 + cos(angle) - 1;
+
+This is evaluated as ((5 + (cos(angle))) - 1).
+
+The Special Object Type ObjectPointer
+
+In  order  for objects to be both R-values and L-values (able to
+be  used  on  both sides of an assignment statement).  a special
+object  type is provided which has only two methods.  One method
+for  the  '<-'  message and one for the special message '<any>'.
+The <any> message  matches any message with out parsing the real
+message  that follows  the  object.    The  following expression
+would be reduced as follows:
+
+    [ObjectPointer [Integer 5]] + [Integer 3]; is equivalent to:
+    [ObjectPointer  [Integer 5]] <any> + [Integer 3];   becomes: 
+    [Integer 5] + [Integer 3]; and then:   
+    [Integer 8];
+
+   
+  (The  [type value]  notation  represents a dale object of type
+type and value value).
+
+Classes and Inheritance
+
+One  of  the  more powerful features of abstraction languages is
+the  ability  to inherit methods and storage from super classes.
+This  is  to  say  that when you specify a superclass to be some
+class  then  the class you are defining inherits all the methods
+and  instance variables of the specified superclass.  Thus those
+methods and variable don't need to be redefined and only missing
+or  methods that need to be changed are defined in the subclass.
+All   the   rest  of  the  methods  can  be  inherited  from the
+superclass.
+
+Extendability
+
+Dale  is  designed  to  be  extensible and flexible as possible.
+This  allows  the  user  to build new data types, as well as new
+control  structures.   It is also designed so that the syntax of
+the language is as flexible as possible.  This gives the creator
+of new types and structures the ability to define his own syntax
+and context to be appropriate to his given application.
+
+Dualities with function calls:
+
+The expression:     
+  List at index put element would be written as:     
+  at_put(&List,index,element) in C and as:     
+  (at-put list index,element) in lisp and as:     
+  (=> list at-put index element) using flavors and objects.
+
+Goals of DALE
+
+1)  to have a small kernel
+
+2)  to  be interactive within an programming environment such as
+NMODE.
+
+3) to be able to be interpreted,compiled and compiled as you go.
+
+4)  to be extensible and flexible
+
+5)  to  be  pure  or  recursive.  i.e..  all of the language and
+structures may be cleanly described using DALE.
+
+6)  to allow self documenting code and readability.  
+
+7)    to    support    and   enforce   modular   programming and
+"interchangeable programming tools" at both the programmer level
+and user level (the UNIX concept).
+
+8)  to  support  clean evolution of software including it's self
+and environment.
+
+9)  to  be easy to learn and use for first time users as well as
+professionals.
+
+10)  to be as powerful and expressive as lisp.    
+

@@ -1,0 +1,38 @@
+One  feature  that would be nice to implement as part of Dale is
+'query'  documentation.   By this I mean that special places for
+comments that describe the class and comments that describe each
+method.   The user could then Query the system while writing and
+debugging  code  by  asking  what  a class is and what a certain
+method  does  or  methods  do.    A  apropos query might also be
+incorporated so that classes and methods which match a given key
+word or buzz word would display their use.
+
+Expanding  inheritance  in  to  trees might also be worth while.
+Smalltalk is exploring this now.
+
+Domains  such  as  CONTROL  should  be  implemented  to ease the
+creation  of new control structures.  A Compiler might also make
+use  of the added information by using special optimizations for
+them.
+
+Auto  type  checking  needs  to  be  added  since that helps the
+programmer  to  find  many type mismatch errors.  A Compiler can
+also  make  good use of types to create more optimal code.  This
+also would correct some of the primitives that don't do explicit
+type  checking.  If a type mismatch occurs an lisp type mismatch
+occurs.
+
+A  special  problem  of  aliasing  between  objects and instance
+variables of the same name occurs when Dale is interpreted.  The
+naming  conflicts  may not be obvious to the programmer and lead
+to  confusion.    At  the  present  time the OBJECT reference is
+preferred  over  the  instance  variable reference.
+
+The  final area is to add user defined precedence to messages of
+the  same  class.    I had hoped to try this out but there is no
+straight  forward way to do this.  It also adds more overhead to
+the  interpreter  which  is not wanted.  User convenience may be
+more important so that this still should be looked into.
+
+
+

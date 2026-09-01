@@ -1,0 +1,393 @@
+
+(dskin "dale.sl")
+(fluid '(_self self _object expr temp templatecode extraArgs right))
+(fluid '(arglist template exprlist _UnEvalArgs _contex _oldSelf))
+(compile '(_eval sentinel _evalparse find* find msgsplit traverse))
+(compile '(_getclass _getfield _storefield _execute _newinstance))
+(compile '(popc pushc _ResolvePass))
+(de I () (invoke 'dale))
+(invoke 'dale)
+
+class integer
+  superclass: object
+
+  instance-variables:
+    aNumber.
+
+instance methods:
+
+  +$ aninteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (PLUS2 (_GetField self 1) (_GetField aninteger 1)))
+
+  -$ aninteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (DIFFERENCE (_GetField self 1)
+                                       (_GetField aninteger 1)))
+  *$ aninteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (TIMES2 (_GetField self 1)
+                                       (_GetField aninteger 1)))
+  /$ aninteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (car (DIVIDE (_GetField self 1)
+                                        (_GetField aninteger 1))))
+  !%$ aninteger
+    primitive (_StoreField (_NewInstance (Quote integer) 1) 1
+                           (cdr (DIVIDE (_GetField self 1)
+                                        (_GetField aninteger 1))))
+
+  =$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (EQUAL (_GetField self 1)
+                          (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)))
+
+  !!=$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (EQUAL (_GetField self 1)
+                          (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)))
+
+  <$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (LESSP (_GetField self 1)
+                          (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)))
+
+  !<!=$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (LEQ (_GetField self 1)
+                        (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)))
+
+  >$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (GREATERP (_GetField self 1)
+                             (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)))
+
+  >=$ aninteger
+    primitive (_StoreField
+               (_NewInstance (Quote boolean) 1) 1
+               (if (GEQ (_GetField self 1)
+                        (_GetField aninteger 1))
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 1)
+                 (_StoreField (_NewInstance (Quote integer) 1) 1 0)))
+
+  ++ 
+    ($ self <- self + 1; $)
+
+  --
+    ($ self <- self - 1; $)
+
+  print
+    primitive (progn (PRINTF "%w%n" (_GetField self 1)) self)
+
+  assign$ aninteger
+    primitive (_StoreField self 1 (_GetField aninteger 1))
+
+% fix parameter binding so that it works
+
+  TimesRepeat:$ aBlock
+    ($ 
+      var tmp;tbk.
+      tmp <- self;
+      tbk <- ablock;
+      (tmp > 0) ifTrue: ($
+                           tbk eval;
+                           (tmp - 1) TimesRepeat: tbk; 
+                          $);
+    $)
+
+Endclass.
+
+class code
+instance methods:
+
+  print
+    primitive (progn (PRETTYPRINT (_GetField self 1)) self)
+
+  eval
+    primitive (eval (_GetField self 1))
+
+  WhileTrue:$ ablock
+   ($
+     var condition; doblock.
+     condition <- self;
+     doblock <- ablock;
+     (self eval) IfTrue: ($
+        doblock eval;
+        condition whiletrue: doblock;
+     $);
+   $)
+
+Endclass.
+
+class objectPointer
+
+  class methods:
+
+  new
+    primitive
+      (_StoreField
+       (_NewInstance (Quote objectPointer) 1) 1 
+       (_storeField (_NewInstance (Quote objectPointer) 1) 1 0))
+  instance methods:
+
+  assign$ anobject
+    primitive (_StoreField self 1 anObject)
+
+  !<any!>
+    primitive (eval (list
+                     (Quote _eval)
+                     (append (list (_GetField self 1))
+                             _UnEvalArgs)))
+
+Endclass.
+
+class object
+
+  class methods:
+
+  new
+
+% new creates a new instance for any given class (self) that has
+% object as it's super class (should we default to this).  The most primitive
+% implementation of this creates an object with its class description
+% pointer set to "self" and storage for it's instance variables.
+% In order to incorporate full inheritance both methods and instance
+% variables should be incorporated. This impies that instance variables
+% of super classes must be added to "self"'s variables.   We will do this
+% by appending instance variables of the super classes on to the end
+% of the new instances variables as we back track up the super class
+% list. This preserves the index of root classes that don't know of the
+% inheritance while forward class can adjust thier indexes to account
+% for the size required by the backward classes.
+% Future investigation might involve using a tree of super classes in
+% which to inheritent from.  i.e. multiple super classes.
+%
+% at present each instance variable is intialized to be a ObjectPointer.
+
+    primitive
+      (let* ((n (_fieldsize self))
+             (new (_NewInstance
+                   (_GetField self 6) n)))
+        (for (from I 1 n)
+             (do (_StoreField
+                  new I (_newinstance (Quote objectpointer) 1))))
+        new)
+
+  error$ msg
+    ($ object new error msg; $)
+
+  instance methods:
+
+  error$ msg
+    primitive
+      (progn
+       (if (equal (_GetClass msg) (quote string))
+         (progn
+          (printf "%w%n" (vector2string
+                          (sub msg 2 (plus (size msg) (minus 2)))))
+          (_NewInstance (quote error) 1))
+         (dale-error "arg to message 'error' must be string" 
+                     nil self))
+       (prog (*break)
+         (setf _errflg nil)
+         (StdError " ")))
+
+Endclass.
+
+class boolean
+
+  class methods:
+
+    new:$ value
+      primitive (_StoreField (_NewInstance (Quote boolean) 1) 1 value)
+      
+  instance methods:
+
+  iftrue:$ ablock
+    primitive 
+      (if (not (equal (_GetField (_GetField self 1) 1) 0))
+        (let* ((_ans self)(self _oldself)(_t _contex))
+                               % use previous self in block to keep
+          (popc)  % reference clean.  also reset to prev contex
+          (eval (_GetField ablock 1))
+          (setf _contex _t)
+          _ans)
+        self)
+
+  ifFalse:$ ablock
+    primitive  % ablock environment to be same as outer enviroment.
+      (if (equal (_GetField (_GetField self 1) 1) 0)
+        (let ((_ans self)(self _oldself) % keep self and _contex the same 
+              (_t _contex))    % as this is a control structure.
+          (popc)
+          (eval (_GetField ablock 1))
+          (setf _contex _t)
+          _ans)
+        self)
+
+  |$ aboolean
+    ($ var val.
+      self
+        ifFalse: ($ aboolean
+                      ifTrue:  ($ val <- 1; $)
+                      ifFalse: ($ val <- 0; $); $)
+        ifTrue:  ($ val <- 1; $);
+      return boolean new: val;
+     $)
+                    
+  print
+    ($
+      self
+       ifTrue: ($ string !" True !" lprint; $)
+       ifFalse: ($ string !" False !" lprint; $);
+     $)
+
+Endclass.
+#
+(i)
+
+class array
+
+  class methods:
+
+    new:$ size
+      primitive
+        (_NewInstance (Quote array) (_GetField size 1))
+
+  instance methods:
+
+    at:$ index
+      primitive
+        (if (LESSP (_GetField index 1) 
+                   (DIFFERENCE (_GetField self (MINUS 1)) 2))
+          (_GetField self (PLUS2 (_GetField index 1) 1))
+          nil)
+
+    put:$ anObject at:$ index
+      primitive
+        (if (LESSP (_GetField index 1)
+                   (DIFFERENCE (_GetField self (MINUS 1)) 2))
+          (_StoreField self (PLUS2(_GetField index 1) 1) anObject)
+          nil)
+
+EndClass. #
+
+(i)
+class string
+  class methods:
+
+  !"& astring &!"
+  ($ return astring; $)
+
+  instance methods:
+
+  print
+    primitive
+     (progn
+      (prin2 (vector2string 
+              (sub self 2 (plus (size self) (minus 2))))) self)
+
+  lprint
+    primitive
+     (progn
+      (printf "%w%n" (vector2string 
+              (sub self 2 (plus (size self) (minus 2))))) self)
+endclass.#
+(i)
+class option
+  class methods:
+
+  object-print-off
+   primitive
+     (progn (setf _prtflg nil) (_newinstance (quote option) 0))
+
+  object-print-on
+   primitive
+     (progn (setf _prtflg t) (_newinstance (quote option) 0))
+
+  Trace-On
+   primitive
+     (progn (setf _Traceflg t) (_newinstance (quote option) 0))
+
+  Trace-off
+   primitive
+     (progn (setf _Traceflg nil) (_newinstance (quote option) 0))
+
+  ?
+   ($
+     string !" Your system options are: !" lprint;
+     string !" object-print-off !" lprint;
+     string !" object-print-on !" lprint;
+     string !" - on prints vectors at the top level loop !" lprint;
+     string !" - off only prints a integer or boolean !" lprint;
+     string !" trace-off - turns tracing off !" lprint;
+     string !" trace-on  - turns tracing on !" lprint;
+     return 1;
+   $)
+
+  instance methods:
+endclass.
+
+class indexedObject
+  superclass: object
+  instance-variables: array.
+  class methods:
+
+  new:$ size
+    primitive
+      (let* ((n (_fieldsize self))
+             (new (_NewInstance
+                   (_GetField self 6) n)))
+        (for (from I 1 n)
+             (do (_StoreField
+                  new I (_newinstance (Quote objectpointer) 1))))
+        (_StoreField new n (_newinstance
+                            (Quote indexable) (_GetField size 1))))
+
+    instance methods:
+
+    basicAt:$ index
+      primitive
+        (let* ((obj 
+                (_GetField 
+                 self
+                 (_fieldsize (get (_GetClass self) (quote daleid))))))
+          (if (lessP (_GetField index 1)
+                     (Difference (_GetField obj (Minus 1)) 2))
+            (_GetField obj (Plus2 (_GetField index 1) 1))
+            (dale-error "index out of range" 
+                        (_GetField index 1) _contex)))
+
+    basicPut:$ anObject At:$ index
+      primitive
+        (let* ((obj 
+                (_GetField 
+                 self
+                 (_fieldsize (get (_GetClass self) (quote daleid))))))
+          (if (lessP (_GetField index 1)
+                     (Difference (_GetField obj (Minus 1)) 2))
+            (progn
+             (_StoreField obj (Plus2 (_GetField index 1) 1) anObject)
+             self)
+            (dale-error "index out of range" 
+                        (_GetField index 1) _contex)))
+       
+endclass.
+#
+
+

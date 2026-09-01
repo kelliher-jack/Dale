@@ -1,0 +1,116 @@
+Notation: Deviating some from the traditional Backus-Naur form we
+will denote  syntactic constructs  by enclosing  English words in
+angular  brackets < and > .   The  brackets { and } are  used for
+grouping.   The enclosed  phrase  is  parsed  before  continuing.
+The * following a syntactic  name  or enclosed  phrase  specifies
+that  group  is  to  be  repeated  0  or more  times.   The bar | 
+specifies alternatives.
+
+
+<DaleStatements>: <DaleStatement> {<DaleStatements> | <null>} ;
+
+<DaleStatement>: <Function> | <Class> | <Expression> | <Diphthong>;
+
+<Expressions>: {<Expression> | <LabelExpr>} ; {<Expressions>
+                                               | <null>}
+
+<Statements> : {<Expressions> | <null>}
+               {RETURN <Expression> ; | <null>}
+
+<Expression>: <Variable> {<- <Expression>
+                          | <MessageExpression>
+                            {<- <Expression> | <null>}
+                          | <Parameter>
+                          | <null>}
+              | <Primary> {<MessageExpression> | <null>}
+
+<MessageExpression>: <Keyword>
+                     {<MessageExpression> | <Parameter> | <null>}
+
+<Parameter>: <Primary> {<MessageExpression> | <null>}
+
+<Primary>: <Variable> | <Number>  | <Block> | ( <Expression> )
+           | <String>
+
+<Variable>: <Identifier>
+
+<Label>: <Identifier>
+
+<TypeName>: <Identifier>
+
+<ClassId>: <Identifier>
+
+<Block>: ($ {<VariableDeclaration> | <null>} <Statements> $)
+
+<VariableDeclaration>: VAR <VariableList> . 
+<VariableList>: <Variable> {<TypeName> | <null>} 
+                | <VariableList> ; <VariableList>
+
+<Class>: CLASS <ClassId>
+         {SUPERCLASS : <ClassId> | <null>}
+         {INSTANCE VARIABLES : <VariableList> . | <null>}
+         {CLASS METHODS : <Methods>* | <null>}
+         INSTANCE METHODS : 
+                {<DomainSwitch> | <null>} <Methods>* 
+                {<DomainSwitch> <Methods>* | <null>} ENDCLASS .
+
+<Function>: FUNCTION <ClassId> METHOD : <fMethods> END .
+
+<DomainSwitch>: EXTERNAL | INTERNAL 
+
+<Methods>: <MessagePattern> <ArgTypeList> 
+           {<Block> | <Primitive> | <null>}
+
+<fMethods>: <ParameterPattern> <ArgTypeList> 
+            {<Block> | <Primitive> | <null>}
+
+<ArgTypeList>: VariableList | <null>
+
+<MessagePattern>: <Keyword> {<Vpattern> | <Epattern> | <null>}
+
+<ParameterPattern>: SELF-MSG {<Vpattern> | <Epattern> | <null>}
+
+<Evalarg>: $ <Variable>
+
+<Valarg>: & <Variable>
+
+<Epattern>: <Evalarg> {$ <Keyword> 
+                       | <Keyword> {<Vpattern> | <Epattern>}
+                       | <null>}
+
+<Vpattern>: <Valarg>  {& <Keyword>
+                       | <Keyword> {<Vpattern> | <Epattern>}
+                       | <null>}
+
+<Keyword>: <Nonnumeric> {<Nonnumeric> / <Digit>}* ;
+
+<Digit>: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+
+<Digits>: <Digit> | <Digit> <Digits>
+
+<Number>: {+ | - | <null>} <Digits>
+
+<Letter>: A | B | ... | Z | a | b | ... | z
+
+<Identifier>: <Letter> {<Letter> | <Digit> | _ | -}*
+
+<Nonnumeric>: <Letter> | <SpecialChar>
+
+
+
+<SpecialChar>:  ! | # | $ | % | & | '| @ | ( | ) | <  | >
+              | - | _ | "|" | = | : | ; | + | \ | * | ^
+              | [ | ] | , | . | ? | / "{" | "}"
+
+<Primitive>: PRIMITIVE {<Call> | <Code>}
+
+<Call>: CALL <runtime routine address>
+
+<Code>: CODE <hexadecimal machine code>
+
+<String>: " <any charactor except a quote> "
+
+<Diphthong>: #DIPHTHONG <SpecialChar> {<SpecialChar> | <null>}
+
+<LabelExpr>: LABEL: <label> | GOTO <label>
+

@@ -1,0 +1,13 @@
+PSL NMODE 3.1,  5-Oct-83
+(I)
+function !"
+  method:
+  self-msg& astring &!"
+  ($ return astring; $)
+end.
+#
+NIL
+(i) !" hello !";#
+[7 STRING H E L L O]
+NIL
+

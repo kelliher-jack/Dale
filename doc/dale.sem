@@ -1,0 +1,194 @@
+Messages:
+
+    Messages  always consist of a primary message which may be a
+"self-msg"  in the case of functions and not actually be present
+in the message expression.  The primary message maybe optionally
+be  followed  by  parameters  and  message  delimiters  and then
+possibly a message terminator.  
+
+Semantics of Parameter Evaluation:
+
+    Parameters   have   two  forms  evaluated  and  unevaluated.
+Evaluated  parameters  are  specified by a '$' and are evaluated
+before  being passed.  Unevaluated parameters are specified by a
+'&'  and  signal the method that it is a macro.  The unevaluated
+parameter's  parsed text representation is a DALE expression and
+is  passed  to  the  macro  as  a  DALE  expression object.  The
+evaluated  parameters  if  any  can  not be referenced until the
+macro  is expanded and evaluated.  Their names maybe manipulated
+by the body of the macro.  The unevaluated parameter expressions
+maybe  referenced and  manipulated by the macro body.  The macro
+must  build  a DALE block or expression object and when finished
+the  block  or  expression  is  evaluated  in the context of the
+expression where it was expanded.
+
+Semantics of the Assignment Message:
+
+    Assignment  ('<-') is the only special message in dale.  The
+left  hand  side of a assignment will be referred to as a lvalue
+or  lexpression.    Only  instance variables, block variables or
+lexpressions consisting of a instance or block variable followed
+by a message expression may be assigned to.  Parameters can not 
+be altered  or  used  as lvalues or lexpressions.  Assignment is
+done by sending the message _asign to the variable's object.  In
+the  case  of  lexpressions  the primary message is concatenated
+with  '_asign' to produce a message that signals a assignment is
+pending and to not return a new resultant object but to return a
+reference to where that assignment is to take place.
+
+Message Evaluation:
+
+    Message  expressions  are  evaluated  in  the context of the
+receiving object's message template.  Each method has a template
+associated  with  it  that  is uniquely specified by the primary
+message.    The receiving object will be referred as the subject
+of  the expression and is always present and the first object in
+a expression.    
+    Evaluation of expressions is done in a left to right fashion
+using the following rules:  
+
+If  the  expression  contains  only one item then that object is
+returned.  otherwise:
+
+Get  the  template  for  the  primary  message from the subjects
+object's class.
+
+If the template consists of only a primary message then
+    Execute the block for that method and 
+    Substitute the returned object for the old subject and
+      primary message
+    Return the evaluated reduced expression.
+
+If the template consists of a primary message followed by
+  a parameter then
+    if the item following the primary message is an expression
+        then evaluate the expression and replace it with the
+          returned object.
+    Push the object following the primary message on the stack 
+      as a parameter and 
+    Execute the block for the subject's method and 
+    Substitute the returned object for the new subject of the 
+      rest of the expression if any
+    Return the evaluated reduced expression.
+
+Note:  if at this point the template consists of message 
+  delimiters and/or maybe a terminator.
+
+If the method for the subject and primary message is NOT a 
+  macro then 
+    Set prevmsg to the primary message. 
+    Set current_delimiter to the first delimiter or terminator. 
+    While current_delimiter exists 
+        if  item  following  prevmsg  is  current_delimiter then
+            signal an error has occured.
+cont:   if the next item is current_delimiter then
+            item following prevmsg is a parameter.
+        else 
+            evaluate_single_expr with item following prevmsg as
+              the subject.
+            goto cont.
+        Set prevmsg to current_delimiter.
+        Set current_delimiter to the next delimiter.
+    End while 
+    if prevmsg is not a terminator then
+        if the item following prevmsg is an expression then
+            evaluate the expression and replace it with the
+              returned object.
+        Push the object following prevmsg on the stack
+          as a parameter and
+    Execute the block for the subject's method and
+    Substitute the returned object for the new subject of the
+      rest of the expression if any and
+    Return the evaluated reduced expression.
+
+Note: if at this point the method is a macro.
+
+Set  prevmsg  to  the primary message.
+Set current_delimiter to the  first  delimiter  or  terminator.
+While current_delimiter exists
+    if template parameter following prevmsg is an unevaluated
+      parameter then
+        Place all items between prevmsg and current_delimiter
+          in an expression object and
+        Push it on the stack as a parameter.
+    else
+        if  item  following  prevmsg  is  current_delimiter then
+            signal an error has occured.
+cont2:  if the next item is current_delimiter then
+            item following prevmsg is a parameter.
+        else
+            evaluate_single_expr with item following prevmsg as
+              the subject.
+            goto cont2.
+    Set prevmsg to current_delimiter.
+    Set current_delimiter to the next delimiter.
+End while
+  if prevmsg is not a terminator then
+      if the template's parameter following prevmsg is an
+        unevaluated parameter then 
+            all items following prevmsg to the end of the
+            expression are placed in a expression object and
+            the object is put on the stack as a parameter.
+      else
+          if the item following prevmsg is an expression then 
+              evaluate the expression and replace it with the 
+                returned object. 
+          Push the object following prevmsg on the stack
+            as a parameter.
+  Execute the block for the subject's macro method checking
+    that all evaluated parameter are not referenced.
+  With the returned block or expression from the macro
+      Resolve all evaluated parameter references.
+      Replace the macro call with the returned expression
+  Return the reevaluated expression.
+
+End of expression evaluation.
+
+evaluate_single_expr
+    This is nearly the same as expression evaluation except that
+after   one  reduction  the  routine  returns  with  the  single
+reduction  as  the  subject  of  the  rest  of  the  unevaluated
+expression so the caller can continue reduction on it.
+    Execute  is also similar except that storage is reserved for
+block variables and each expression in the block is evaluated.
+
+Semantics of Variable Types:
+
+    All  untyped variables default to type 'object'.  The object
+type  is a pointer to an object.  A typed variable is equivalent
+to  assigning  the variable a new instance of that type or class
+and  then  performing  a type check each time it is assigned to.
+All  untyped  parameters  default  to  type  'object'.  The type
+object  includes all other types.  A typed parameter does a type
+check  to  insure  that  the parameter passed to it really is of
+that type or class.
+
+Diphthongs:
+
+    Diphthongs  are  symbols that are a special character or two
+special  characters.  The are special in the sense that they can
+not  be part of a variable name of keyword.  When a diphthong is
+recognized  it  is  surrounded by white space before the text is
+parsed.  The predefined diphthongs are '(',')',';','&','$','($','$)' and '<-'.  The user may add more diphthongs such a '+' or '
+++' by using the '#diphthong directive'.
+
+Labels:
+
+    Labels referred to in a goto statement are searched from the
+innermost block where the goto occurred to the outermost block.
+
+User Notes on Macros:
+
+    If a macro might contain nested macros be sure that the only
+place  where  a nested macro could be valid is inside of a block
+or parenthesized expression.
+    A  nonterminated  unevaluated parameter is terminated by the
+end of expression in which the call is in.
+
+Special Notes:
+
+    It  might  be  a good idea not to require a ';' after blocks
+that are  at  the  end of a expression ie, '$)' and '$);' should
+both  be  valid.    Also  type names name may also be changed to
+allow message expressions to follow them.
+
