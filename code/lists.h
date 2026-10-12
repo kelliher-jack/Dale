@@ -35,71 +35,19 @@ typedef LISTNODE *LIST;
 /* ---- size helper for NewInstance() ---- */
 #define LISTSIZE    (sizeof(LISTNODE))
 
-/* ---- function prototypes (K&R style for compatibility) ---- */
+/* ---- function prototypes ---- */
 
-/* place(item, node) — store 'item' in 'node' */
-OBJPTR place(item, node)
-    OBJPTR item;
-    LIST   node;
-{
-    if (node) node->item = item;
-    return item;
-}
+extern OBJPTR place();
+extern LIST ninsert();
+extern LIST ExprToList();
+extern OBJPTR GetValPtr();
 
-/* insert(node, hear) — append 'node' after 'hear' in the list */
-LIST ninsert(node, hear)
-    LIST node;
-    LIST hear;
-{
-    if (!node) return NULL;
-
-    node->next = NULL;
-    node->prev = hear;
-
-    if (hear) {
-        hear->next = node;
-    }
-
-    return node;
-}
-
-/* NewExprList(list) — allocate a new LIST node and zero it */
+/* allocate a new LIST node and zero it */
 #define NewExprList(list) \
     ((list) = (LIST)NewInstance(dEXPRLIST, LISTSIZE), \
      (list)->item = NULL, \
      (list)->class = NULL, \
      (list)->next = NULL, \
      (list)->prev = NULL)
-
-/* ExprToList(expr) — convert a NULL-terminated OBJPTR array into a LIST */
-LIST ExprToList(expr)
-    OBJPTR *expr;
-{
-    int i;
-    LIST list, lastnode, node;
-
-    NewExprList(list);
-    lastnode = list;
-
-    for (i = 0; expr[i] != NULL; i++) {
-        NewExprList(node);
-        place(expr[i], node);
-        ninsert(node, lastnode);
-        lastnode = node;
-
-        if (ClassSymbol(expr[i]) == dEXPR) {
-            place(ExprToList(expr[i]), node);
-        }
-    }
-
-    return NEXT(list);
-}
-
-/* GetValPtr(node) — extract the OBJPTR stored in a LIST node */
-OBJPTR GetValPtr(node)
-    LIST   node;
-{
-    return node ? node->item : NULL;
-}
 
 #endif /* LISTS_H */

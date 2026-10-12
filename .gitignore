@@ -1,6 +1,7 @@
 # Build artifacts
 *.o
 code/dale
+code/test_lists
 
 # Logs
 .logs/

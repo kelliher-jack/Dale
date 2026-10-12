@@ -1,5 +1,6 @@
 #include "stdio.h"
 #include "ctype.h"
+#include "string.h"
 
 char *getarg(n,s,size,argc,argv)
 
@@ -10,8 +11,8 @@ char *getarg(n,s,size,argc,argv)
   char *argv[];
 
 {
-	char *str;
-	int i;
+        char *str;
+        int i;
 
   if (n < 0 | n >= argc) return(NULL);
   i=0;
@@ -37,14 +38,14 @@ normalize(fname,fext)
   /* to upper case */
   i=0;
   while(c=fname[i])
-  	 if (c == '\n' || c == '\r') {
-      	fname[i] = '\0';
+         if (c == '\n' || c == '\r') {
+        fname[i] = '\0';
         break;
-  	 }
+         }
      else
          fname[i++]=toupper(c);
 
-	if (--i < 0) return(0); /* null fname */
+        if (--i < 0) return(0); /* null fname */
 
   /* if no '.', add '.'fext */
 
@@ -65,9 +66,9 @@ find(addr,len,ch)
   int len;
 
 {
-	int i;
+        int i;
 
-	for(i=0;i<len && addr[i] != ch; i++) ;
+        for(i=0;i<len && addr[i] != ch; i++) ;
      return(i<len ? i : -1);
 }
 
@@ -77,30 +78,30 @@ find(addr,len,ch)
  */
 
 _itoa(n,s)
-	char s[];
-	int n;
+        char s[];
+        int n;
 {
-	int i,sign;
+        int i,sign;
 
-	if ((sign = n) < 0) n = -n;
-	i = 0;
-	do {
-		s[i++] = n % 10 + '0';
-	} while ((n /= 10) > 0);
-	if (sign < 0)
-		s[i++] = '-';
-	s[i] = '\0';
-	reverse(s);
+        if ((sign = n) < 0) n = -n;
+        i = 0;
+        do {
+                s[i++] = n % 10 + '0';
+        } while ((n /= 10) > 0);
+        if (sign < 0)
+                s[i++] = '-';
+        s[i] = '\0';
+        reverse(s);
 }
 
 reverse(s)
-	char s[];
+        char s[];
 {
-	int c,i,j;
+        int c,i,j;
 
-	for (i = 0, j = strlen(s) - 1; i < j; i++, j--) {
-		c = s[i];
-		s[i] = s[j];
-		s[j] = c;
-	}
+        for (i = 0, j = strlen(s) - 1; i < j; i++, j--) {
+                c = s[i];
+                s[i] = s[j];
+                s[j] = c;
+        }
 }
