@@ -1,39 +1,7 @@
 #include "stdio.h"
-#include "lists.h"
 #include "dale.h"
+#include "lists.h"
 
-#define NewExprList(list) ((list) = \
-						(LIST)NewInstance(dEXPRLIST,sizeof(LIST)), \
-						(list)->next = NULL, \
-						(list)->prev = NULL, \
-						(list)->item = NULL) \
+/* ExprToList is now defined in lists.h; this file is kept for
+ * any future list-specific helpers that need to live in a .c file. */
 
-LIST ExprToList(expr)
-	OBJPTR *expr;
-{
-	int i;
-	LIST list,lastnode,node;
-
-	NewExprList(list);
-	lastnode = list;
-	for(i=0;expr[i] != NULL;i++) {
-		NewExprList(node);
-		place(expr[i],node);
-		ninsert(node,lastnode);
-		lastnode = node;
-		if(ClassSymbol(expr[i]) == dEXPR)
-			place(ExprToList(expr[i]),node);
-	}
-	return(NEXT(list));
-}
-
-/* addrprint(node)
-	LIST node;
-{
-	if(ClassSymbol(node->item) == dBLOCK)
-		printf("BLOCK");
-	else if(ClassSymbol(node->item) == dEXPRLIST)
-		printf("EXPR");
-	else
-		printf("%x",node->item);
-} */

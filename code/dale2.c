@@ -16,18 +16,18 @@ int dalestatement()
     } else {
       printf("call exprression\n"); fflush(stdout);      
       if ((ptr=expression(0,&offset,0))) {
-	if(!match(";")) {
-	  e4(); /* missing ; */
-	}
-	if(errcnt) {
-	  currentobject=NULL;
-	  errcnt=0;
-	} else { currentobject=(OBJPTR *)ptr; }
-	return(TRUE);
+        if(!match(";")) {
+          e4(); /* missing ; */
+        }
+        if(errcnt) {
+          currentobject=NULL;
+          errcnt=0;
+        } else { currentobject=(OBJPTR *)ptr; }
+        return(TRUE);
       } else {
-	error("not a dale statement");
-	kill();
-	return(FALSE);
+        error("not a dale statement");
+        kill();
+        return(FALSE);
       }
     }
   }
@@ -36,7 +36,8 @@ int function()
 
   {
       /* global char id[120] */
-      int  buf[4],size;
+      OBJPTR buf[4];
+      int  size;
 
     size=2;
     if (match("function")) {
@@ -67,7 +68,8 @@ int class()
 
   {
       /* glogal char id[15] */
-      int  buf[48],size;
+      OBJPTR buf[48];
+      int  size;
       int  prevdomain,offset;
 
     offset=0;
@@ -77,7 +79,7 @@ int class()
       }
       MkClass(id);
       printf("identifier %s char %d  lptr %d\n",id,(int)line[lptr],lptr);
-      fflush(stdout);	      
+      fflush(stdout);         
       if(match("superclass:")) {
         if(!identifier(id)) {
           e1(); /* illegal identifier */
@@ -167,14 +169,14 @@ OBJPTR expression(searchptr,offset,snum)
         }
         exprlist[exprptr++]=ptr;
       } else if(message(exprlist,&exprptr,searchptr,offset)) {
-	if(match("<-")) {
-	  exprlist[exprptr++]=dASIGN;
-	  if((ptr=expression(searchptr,offset,snum))==NULL) {
-	    e3(); /* expression expected */
-	    return(MkExpr(exprlist,exprptr));
-	  }
-	  exprlist[exprptr++]=ptr;
-	}
+        if(match("<-")) {
+          exprlist[exprptr++]=dASIGN;
+          if((ptr=expression(searchptr,offset,snum))==NULL) {
+            e3(); /* expression expected */
+            return(MkExpr(exprlist,exprptr));
+          }
+          exprlist[exprptr++]=ptr;
+        }
       } else {
         parameter(exprlist,&exprptr,searchptr,offset);
       }

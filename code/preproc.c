@@ -3,7 +3,7 @@
 
 int inbyte();
 int inchar();
-void inline();
+void do_inline();
 
 /*
  * Preprocessor Module
@@ -11,11 +11,11 @@ void inline();
  * FILES: preproc.c
  *
  * EXTERNAL PROCEDURES:
- *  boolean match(lit)		char *lit;
+ *  boolean match(lit)          char *lit;
  *  void blanks()
  *  int inbyte()
  *  int inchar()
- *  void inline()
+ *  void do_inline()
  *
  */
 
@@ -114,8 +114,8 @@ void preprocess()
   strcpy(line,mline);
   mptr=strlen(line)+2;
   if (OptionL) {
-  	fputs(line,stdout);
-	putchar(EOL);
+        fputs(line,stdout);
+        putchar(EOL);
   }
 }
 
@@ -148,17 +148,17 @@ int match(lit)
 void blanks()
 {
 
-	while(1) {
-		while(ch==0) {
-			inline();
-	        preprocess();
-	        if(eof)break;
-		}
-	    if(ch==' '){(void)gch;}
-	    else if(ch==tabchar){(void)gch;}
-	    else if(ch=='\r'){(void)gch;}
-	    else return;
-	}
+        while(1) {
+                while(ch==0) {
+                        do_inline();
+                preprocess();
+                if(eof)break;
+                }
+            if(ch==' '){(void)gch;}
+            else if(ch==tabchar){(void)gch;}
+            else if(ch=='\r'){(void)gch;}
+            else return;
+        }
 }
 
 int inbyte()
@@ -166,7 +166,7 @@ int inbyte()
   while(line[lptr]==0)
    {
     if (eof) return 0;
-    inline();
+    do_inline();
     preprocess();
    }
   return gch;
@@ -174,22 +174,22 @@ int inbyte()
 
 int inchar()
 {
-  if(line[lptr]==0) inline();
+  if(line[lptr]==0) do_inline();
   if(eof) return 0;
   return(gch);
 }
 
 /*
- * inline() - Precondition before calling: current charactor <ch or gch> in
+ * do_inline() - Precondition before calling: current charactor <ch or gch> in
  * the line input buffer <line> is a 0. i.e. the buffer is empty.
  * 
- * inline fills the line input buffer <line> from the currently active input
+ * do_inline fills the line input buffer <line> from the currently active input
  * file.  It fills the buffer until a eol is reached or the buffer is full.
  * If the } of the source file is reached the global var eof is set to
  * 1  i.e. TRUE
  */
 
-void inline()
+void do_inline()
  {
   int k;
   FILE *unit;
@@ -208,8 +208,8 @@ void inline()
     if(k==EOF)
      {
       fclose(unit);
-      if(inp2)inp2=NULL;
-      else eof=1;
+      if(inp2){inp2=NULL;}
+      else {eof=1; inp=NULL;}
      }
     if(lptr)
      {

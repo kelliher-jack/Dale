@@ -6,6 +6,7 @@
 #include "dale.h"
 
 unsigned char _ctype_[] = {
+    0,       /* EOF (-1+1=0) — dummy entry for 1-indexed access */
     0,       /* 0   NUL */
     0,       /* 1   SOH */
     0,       /* 2   STX */

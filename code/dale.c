@@ -10,7 +10,7 @@
   int  OptionL;  /* command line options */
   int  lptr,mptr;
   int  errcnt,
-  	   eof,
+           eof,
        cmode;
 
   FILE  *inp,    /* source input file id   */
@@ -32,9 +32,9 @@
   OBJPTR ilessequ(),igreater(),inotless(),iincr(),idecr(),iprint();
   OBJPTR ilprint(),bprint(),slprint(),oprint(),assign(),sysdump();
   OBJPTR (*procedure[])() = {
-  	iadd,isub,imult,idiv,imod,iequ,inotequ,iless,
-  	ilessequ,igreater,inotless,iincr,idecr,iprint,
-  	ilprint,bprint,slprint,oprint,assign,sysdump
+        iadd,isub,imult,idiv,imod,iequ,inotequ,iless,
+        ilessequ,igreater,inotless,iincr,idecr,iprint,
+        ilprint,bprint,slprint,oprint,assign,sysdump
   };
 
   OBJPTR table[tblsize];
@@ -120,28 +120,25 @@ main(argc,argv)
     s[find(s,100,'.')]=0;
     normalize(s,"IMM");
 /*      if ((outp=fopen(s,"w"))==NULL) {
-	        putc(EOL,stdout);
-	        fputs(" can't open ",stdout);
-	        fputs(s,stdout);
-	        exit(1);
+                putc(EOL,stdout);
+                fputs(" can't open ",stdout);
+                fputs(s,stdout);
+                exit(1);
         }
 */
     printf("\n  %s -> %s\n\n",t,s);
     parse();
     putchar(EOL);
     ersum();
-    printf("dump\n");
-    dump(table);
-    printf("fin\n");    
-/*	    if(!errcnt)
-		    dump(table);
-		    printf("dump complete\n");  */
-    fclose(inp);
+    if(inp) fclose(inp);
 /*      fclose(outp); */
   }
-/*	if (inp == NULL) {  */
-  inp = stdin;
-  parse();
-  ersum();
-/*	}                   */
+/*      if (inp == NULL) {  */
+  if (argc <= 1) {
+    inp = stdin;
+    parse();
+    ersum();
+  }
+/*      }                   */
+  return 0;
 }

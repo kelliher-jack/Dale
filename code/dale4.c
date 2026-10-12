@@ -122,7 +122,7 @@ OBJPTR msgs[];
   }
 
 primitive(ptr)
-	OBJPTR *ptr;
+        OBJPTR *ptr;
   {
     char token;
     int  addr;

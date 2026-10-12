@@ -1,6 +1,9 @@
 #include "stdio.h"
 #include "dale.h"
 #include "hash.h"
+/* lists.h is included here for LIST macros, but it also defines inline
+ * functions that end up in eval.o.  expr.c must NOT be linked because
+ * those same functions would then be duplicated. */
 #include "lists.h"
 
 OBJPTR findprimary();

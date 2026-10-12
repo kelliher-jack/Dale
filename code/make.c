@@ -59,8 +59,8 @@ AddSuper(id)
 }
 
 OBJPTR MkInstance(list,size,searchptr)
-	int size;
-	OBJPTR list[],searchptr;
+        int size;
+        OBJPTR list[],searchptr;
 
 {
     int i,j;
@@ -136,7 +136,7 @@ OBJPTR MkNum(num)
 int num;
 {
     OBJPTR *ptr;
-  ptr=NewInstance(dINTEGER,sizeof(int));
+  ptr=NewInstance(dINTEGER,POINTERSIZE);
   ptr[0]=(OBJPTR)num;
   return(ptr);
 }
@@ -171,21 +171,21 @@ OBJPTR blockvar(id,searchptr)
 {
   int i;
   OBJPTR *ptr,*str,*ptr2;
-    
+  OBJPTR *sp;   /* properly typed alias for searchptr */
+
   ptr=NULL;
   ptr2=NULL;
   str=add(table,id);
   str=str[STRPTR];
-  printf("blockvar(%s, 0x%lx\n",id,searchptr); fflush(stdout);
-  while(searchptr) {
-    for(i=2;i<3*(unsigned int)searchptr[1];i+=3)
-      if(searchptr[i]==str) {
-	printf("searchptr i %d, 0x%lx\n",i,searchptr[i]); fflush(stdout);	
-        ptr=MkVar(str,searchptr[i+2],dVAR);
+  sp=(OBJPTR*)searchptr;
+  while(sp) {
+    for(i=2;i<3*(unsigned int)sp[1];i+=3)
+      if(sp[i]==str) {
+        ptr=MkVar(str,sp[i+2],dVAR);
         break;
       }
     if(ptr) break;
-    searchptr=searchptr[0];
+    sp=(OBJPTR*)sp[0];
   }
   for(i=0;currentmsg[i];i++)
     if(currentmsg[i]==str)
@@ -215,15 +215,15 @@ int  size;
 }
 
 OBJPTR MkCall(index)
-	int index;  /* index into array of predefined primitive */
-				/* function pointers */
+        int index;  /* index into array of predefined primitive */
+                                /* function pointers */
 
 {
-	int * ptr;
+        OBJPTR * ptr;
 
-	ptr=(int *)NewInstance(dPRIM,sizeof(int));
-	ptr[0]=index;
-	return(ptr);
+        ptr=NewInstance(dPRIM,POINTERSIZE);
+        ptr[0]=(OBJPTR)index;
+        return(ptr);
 }
 
 MkCode()

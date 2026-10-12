@@ -10,6 +10,9 @@
 #ifndef LISTS_H
 #define LISTS_H
 
+/* OBJPTR is defined in dale.h; include it before this header */
+#include "dale.h"
+
 /* ---- type ---- */
 typedef struct listnode {
     OBJPTR item;      /* the Dale object stored in this node */

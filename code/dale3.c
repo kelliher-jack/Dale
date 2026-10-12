@@ -38,7 +38,7 @@ OBJPTR slist[];
         e4(); /* missing ; */
       return(TRUE);
     }
-    ptr=NewInstance(dEXPR,4);
+    ptr=NewInstance(dEXPR,2*POINTERSIZE);
     ptr[0]=dSELF;
     ptr[1]=NULL;
     slist[(*index)++]=ptr;
@@ -78,7 +78,7 @@ OBJPTR searchptr;
 OBJPTR list[];
   {
       int num,i;
-  	  OBJPTR *ptr;
+          OBJPTR *ptr;
       /* global char id[] */
     if(identifier(id)) {
       if((ptr=blockvar(id,searchptr)))
@@ -161,7 +161,8 @@ OBJPTR list[];
 
 varlist(list,max,index,offset)
 int max,*index;
-OBJPTR list[],*offset;
+OBJPTR list[];
+int *offset;
   {
       /* global char id[] */
 
@@ -169,7 +170,7 @@ OBJPTR list[],*offset;
     list[*index]=add(table,id);
     if(identifier(id)) list[*index+1]=add(table,id);
     else list[*index+1]=add(table,"object");
-    list[*index+2] = *offset;
+    list[*index+2] = (OBJPTR)*offset;
     (*offset)++;
     if(*index<max-3) *index = *index + 3;
     else error("too many variables");
@@ -199,7 +200,8 @@ methods(list,max,index)
   OBJPTR list[];
 
   {
-      int size,blockptr,offset;
+      int size,offset;
+      OBJPTR blockptr;
       OBJPTR msgs[32];
 
       
@@ -207,8 +209,8 @@ methods(list,max,index)
     offset=0;
     if(!mpattern(msgs,&size)) return(0);
     MkMsg(msgs,size,list,*index);
-    printf("msgs %s size %d index %d \n",msgs[*index],size, *index);
-    fflush(stdout);	      
+    printf("msgs size %d index %d\n",size, *index);
+    fflush(stdout);
     currentmsg=list[*index];
     argtypelist();
     *index = *index+2;
@@ -223,7 +225,8 @@ methods(list,max,index)
 
 fmethod()
   {
-      int index,blockptr,offset;
+      int index,offset;
+      OBJPTR blockptr;
       OBJPTR msgs[4];
     offset=0;
     if(!ppattern(msgs,&index)) return(0);
@@ -238,6 +241,8 @@ fmethod()
 argtypelist()
   {
       int size;
+      int offset;
       OBJPTR list[64];
-    return(varlist(list,64,&size));
+    offset=0;
+    return(varlist(list,64,&size,&offset));
   }
