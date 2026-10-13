@@ -202,18 +202,53 @@ OBJPTR slprint(parameters)
 OBJPTR oprint(parameters)
         OBJPTR *parameters[];
 {
-        printf("[%p]",(void*)parameters[0]);
+        OBJPTR *self;
+        OBJPTR class;
+
+        self = parameters[0];
+        class = ClassSymbol(self);
+        if(class == dSTRING)
+                printf("%s",(char *)self);
+        else if(class == dINTEGER)
+                printf("%d",(int)(long)self[0]);
+        else if(class == dBOOLEAN)
+                printf("%s",*((BOOLEAN*)self) ? "TRUE" : "FALSE");
+        else
+                printf("[%p]",(void*)self);
         return(parameters[0]);
 }
 
 OBJPTR new(parameters)
         OBJPTR *parameters[];
-        /* self is a class parameter[0], size is parameter[1] */
+        /* self (parameters[0]) is a class definition object.
+         * Create a new instance of that class with space for
+         * its instance variables.
+         */
 {
-        OBJPTR instance;
+        OBJPTR *class_def;
+        OBJPTR *varlist;
+        OBJPTR class_symbol;
+        int nvars;
 
-        instance = NewInstance(parameters[0],(int)parameters[1] * POINTERSIZE);
-        return(instance);
+        class_def = (OBJPTR *)parameters[0];
+
+        /* Get instance variable list from class_def[1] */
+        varlist = (OBJPTR *)class_def[1];
+
+        /* Get count of instance variables (varlist[1] = count) */
+        if(varlist)
+                nvars = (int)(long)varlist[1];
+        else
+                nvars = 0;
+
+        /* Look up the class symbol by name so ClassSymbol() and
+         * GetClass() work correctly on the new instance.
+         * class_def[5] is the class name string (set in MkClass).
+         */
+        class_symbol = lookup(table, (char *)class_def[5]);
+
+        /* Create new instance: nvars pointers worth of storage */
+        return(NewInstance(class_symbol, nvars * POINTERSIZE));
 }
 
 OBJPTR assign(parameters)

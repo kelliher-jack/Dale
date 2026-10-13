@@ -23,7 +23,7 @@ parse()
  {
 
    int i;
-   OBJPTR *param[2],*locs[2];  /* dummy args */
+   OBJPTR *param[MAXPARAMS],*locs[MAXLOCALS];  /* args for eval */
 
    eof=0; 
    lptr=0;
@@ -40,10 +40,9 @@ parse()
      } else { dalestatement(); }
      if(currentobject) {
        if(ClassSymbol(currentobject)==dCLASS) {
-	 printf("dCLASS: %s.\n",currentobject[5]); fflush(stdout);
+         printf("dCLASS: %s.\n",currentobject[5]); fflush(stdout);
        } else {
-	 /* printexpr(currentobject,0); */
-	 eval(currentobject,param,locs);
+         eval(currentobject,param,locs);
        }
      }
      /* force eof if pending */
