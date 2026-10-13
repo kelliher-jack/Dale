@@ -1,179 +1,239 @@
+/*
+ * dump.c — human-readable dump of the Dale symbol table for debugging.
+ *
+ * Walks the hash table and prints every class with its superclass,
+ * instance variables, methods, and code blocks (expressions).
+ *
+ * (C) 1984 Jack S. Kelliher  — 64-bit port October 2026
+ */
+
 #include "stdio.h"
 #include "dale.h"
 #include "hash.h"
 
-void printexpr(int ptr,OBJPTR *space);
+/* ---- forward declarations (correct prototypes for 64-bit) ---- */
 
-void dump(table)
-OBJPTR table[];
+static void printclass(OBJPTR *ptr);
+static void printvar(OBJPTR *tmp, int size);
+static void printblock(OBJPTR *ptr, int space);
+static void printexpr(OBJPTR *ptr, int space);
+static void printspec(char *msg, OBJPTR *ptr, int space);
+static void tab(int space);
 
+/* ---- public entry point ---- */
+
+void dump(OBJPTR table[])
 {
-    int  i,tablesize;
-    OBJPTR  *class,*current,*ptr,ClassSymbol();
+    int  i, tablesize;
+    OBJPTR *current, *ptr;
+    OBJPTR class;
 
-    tablesize=(int)table[SIZE];
-    printf("dump(0x%lx)  size %d\n",table,tablesize); fflush(stdout);    
-    for(i=1;i<tablesize;i++) {
-      if (table[i])
-	printf("table[%d] 0x%lx\n",i,table[i]);
-        for(current=(OBJPTR *)table[i]; current; current=current[LNKPTR]) {
-          fputs(current[STRPTR],stdout);
-          class=NULL;
-          if((ptr=current[OBJPR])) {
-            class=ClassSymbol(ptr);
-            fputs(" - ",stdout);
-            fputs(class[STRPTR],stdout);
-          }
-          putchar(EOL);
-          if (class==dCLASS) printclass(ptr);
+    tablesize = (int)(long)table[SIZE];   /* stored as OBJPTR, small int */
+
+    printf("\n");
+    printf("===== SYMBOL TABLE DUMP  (size %d) =====\n", tablesize);
+    fflush(stdout);
+
+    for (i = 1; i < tablesize; i++) {
+        if (table[i] == NULL) continue;
+
+        printf("--- bucket[%d] ---\n", i);
+
+        for (current = (OBJPTR *)table[i]; current; current = (OBJPTR *)current[LNKPTR]) {
+
+            /* symbol name */
+            fputs("  ", stdout);
+            fputs(current[STRPTR], stdout);
+
+            /* what kind of object is it? */
+            class = NULL;
+            ptr = (OBJPTR *)current[OBJPR];
+            if (ptr) {
+                class = ClassSymbol((OBJPTR)ptr);
+                fputs("  (", stdout);
+                fputs(((OBJPTR *)class)[STRPTR], stdout);
+                fputs(")", stdout);
+            }
+            putchar(EOL);
+
+            /* if it's a class, print its internals */
+            if (class == dCLASS && ptr)
+                printclass(ptr);
+        }
+    }
+    printf("===== END DUMP =====\n\n");
+}
+
+/* ---- print a class definition ---- */
+
+static void printclass(OBJPTR *ptr)
+{
+    int j, k, l;
+    OBJPTR *s, *tmp;
+
+    /* superclass */
+    s = (OBJPTR *)ptr[0];
+    if (s) {
+        fputs("    superclass: ", stdout);
+        fputs(s[STRPTR], stdout);
+        putchar(EOL);
+    }
+
+    /* instance variables */
+    tmp = (OBJPTR *)ptr[1];
+    if (tmp)
+        printvar(tmp, 4);
+
+    /* method tables (domains: INTERNAL, EXTERNAL, XCLASS) */
+    for (j = 2; j < 5; j++) {
+        if (ptr[j] == NULL) continue;
+
+        s = (OBJPTR *)ptr[j];       /* s -> METHODS object */
+        fputs("    METHODS [domain ", stdout);
+        putchar(j + '0');
+        fputs("]  count=", stdout);
+        printf("%d\n", (int)(long)s[0]);
+
+        for (k = 1; k < (int)(long)s[0] * 2 + 1; k += 2) {
+            tmp = (OBJPTR *)s[k];   /* tmp -> message template */
+
+            /* print the message pattern */
+            tab(6);
+            fputs("msg: ", stdout);
+            for (l = 0; tmp[l] != NULL; l++) {
+                if (tmp[l] < (OBJPTR)4) {
+                    /* small integer = parameter slot number */
+                    printf("#%d ", (int)(long)tmp[l]);
+                } else {
+                    fputs((char *)tmp[l], stdout);
+                    putchar(' ');
+                }
+            }
+            putchar(EOL);
+
+            /* print the code block or primitive */
+            tmp = (OBJPTR *)s[k + 1];  /* tmp -> block or primitive */
+            if (ClassSymbol((OBJPTR)tmp) == dBLOCK)
+                printblock(tmp, 6);
+            else
+                printf("      PRIMITIVE call[%d]\n", (int)(long)tmp[0]);
         }
     }
 }
 
-void printclass(ptr)
-OBJPTR *ptr;
-{
-    int j,k,l;
-    OBJPTR *s,*tmp;
+/* ---- print instance variable declarations ---- */
 
-  s=ptr[0];
-  if(s) {
-    fputs("  superclass: ",stdout);
-    fputs(s[STRPTR],stdout);
-    putchar(EOL);
-  }
-  tmp=ptr[1];
-  if (tmp)
-    printvar(tmp,2);
-  for(j=2;j<5;j++)
-    if(ptr[j]) {
-      s=ptr[j]; /* s=ptr to method */
-      fputs("  METHODS ",stdout);
-      putchar(j+'0');
-      putchar(EOL);
-      for(k=1;k<(int)s[0]*2+1;k+=2) {
-        tmp=s[k]; /* tmp=ptr to template */
-        tab(4);
-        for(l=0;tmp[l];l++)
-          if((l-2)%4 == 0) {  /* field is the parameter offset */
-            printf("%d ",tmp[l]);
-          }
-          else {
-            fputs(tmp[l],stdout);
-            putchar(' ');
-          }
+static void printvar(OBJPTR *tmp, int size)
+{
+    int j;
+    char num[16];
+
+    tab(size);
+    if (tmp == NULL) return;
+
+    fputs("instance vars (count=", stdout);
+    _itoa((int)(long)tmp[1], num);
+    fputs(num, stdout);
+    fputs("):\n", stdout);
+
+    for (j = 2; j < 3 * (int)(long)tmp[1] && tmp != NULL; ) {
+        tab(size + 2);
+        fputs("  ", stdout);
+        fputs((char *)tmp[j++], stdout);   /* name */
+        putchar(' ');
+        fputs((char *)tmp[j++], stdout);   /* type */
+        fputs(" @offset ", stdout);
+        _itoa((int)(long)tmp[j++], num);   /* offset */
+        fputs(num, stdout);
         putchar(EOL);
-        tmp=s[k+1]; /* tmp=pointer to block */
-        if(ClassSymbol(tmp)==dBLOCK) printblock(tmp,4);
-        else
-        	printf("      PRIMITIVE call[%d]\n",tmp[0]);
-      }
     }
 }
 
-printvar(tmp,size)
-int size;
-OBJPTR *tmp;
-{
-   int  j;
-   char num[8];
+/* ---- print a code block ---- */
 
- tab(size);
- if(tmp) {
-   fputs("instance vars: ",stdout);
-   _itoa(tmp[1],num);
-   fputs(num,stdout);
-   putchar(EOL);
-   for(j=2;(j<3*(int)tmp[1]) && (int)tmp;) {
-     tab(size+2);
-     fputs(tmp[j++],stdout);
-     putchar(' ');
-     fputs(tmp[j++],stdout);
-     fputs(" = ",stdout);
-     _itoa(tmp[j++],num);
-     fputs(num,stdout);
-     putchar(EOL);
-   }
- }
-}
-
-
-printblock(ptr,space)
-int space;
-OBJPTR *ptr;
-{
-  int i;
-
-  tab(space);
-  fputs("BLOCK\n",stdout);
-  printvar(ptr[1],space+2);
-  for(i=2;i<(int)ptr[0]+2;i++)
-    printexpr(ptr[i],space+2);
-}
-
-printexpr(ptr,space)
-int space;
-OBJPTR *ptr;
-
-{
-  int  i;
-  OBJPTR *tmp,*cptr,ClassSymbol();
-
-  i=0;
-  tab(space);
-  fputs("EXPRESSION\n",stdout);
-  while(ptr[i]) {
-    cptr=(OBJPTR *)ClassSymbol(ptr[i]);
-    if(cptr == (OBJPTR *)dBLOCK)
-      printblock(ptr[i],space+2);
-    else if (cptr == (OBJPTR *)dEXPR)
-      printexpr(ptr[i],space+2);
-    else if (cptr == (OBJPTR *)dSTRING) {
-      tab(space+2);
-      printf("STRING \"%s\"\n",ptr[i]);
-    }
-    else if (cptr == (OBJPTR *)dINTEGER) {
-      tab(space+2);
-      printf("NUMBER %d\n",(int)*(ptr[i]));
-    }
-    else if (cptr == (OBJPTR *)dLABEL)
-      printspec("LABEL ",ptr[i],space+2);
-    else if (cptr == (OBJPTR *)dGOTO)
-      printspec("GOTO ",ptr[i],space+2);
-    else if (cptr == (OBJPTR *)dPARAMETER)
-      printspec("PARAMETER ",ptr[i],space+2);
-    else if (cptr == (OBJPTR *)dVAR)
-      printspec(NULL,ptr[i],space+2);
-    else {
-      tmp=(OBJPTR *)ptr[i];
-      tab(space+2);
-      fputs(tmp[STRPTR],stdout);
-      putchar(EOL);
-    }
-    i++;
-  }
-}
-
-printspec(msg,ptr,space)
-char *msg;
-int  space;
-OBJPTR *ptr;
-{
-  char num[10];
-
-  tab(space);
-  if(msg) fputs(msg,stdout);
-  fputs(ptr[0],stdout);
-  fputs(" = ",stdout);
-  _itoa(ptr[1],num);
-  fputs(num,stdout);
-  putchar(EOL);
-}  
-
-tab(space)
-int space;
+static void printblock(OBJPTR *ptr, int space)
 {
     int i;
-  for(i=0;i<space;i++)
-    putchar(' ');
+
+    tab(space);
+    fputs("BLOCK  (exprs=", stdout);
+    printf("%d)\n", (int)(long)ptr[0]);
+
+    printvar((OBJPTR *)ptr[1], space + 2);
+
+    for (i = 2; i < (int)(long)ptr[0] + 2; i++)
+        printexpr((OBJPTR *)ptr[i], space + 2);
+}
+
+/* ---- print an expression list ---- */
+
+static void printexpr(OBJPTR *ptr, int space)
+{
+    int i;
+    OBJPTR *tmp, *cptr;
+
+    if (ptr == NULL) return;
+
+    tab(space);
+    fputs("EXPRESSION:\n", stdout);
+
+    i = 0;
+    while (ptr[i] != NULL) {
+        cptr = (OBJPTR *)ClassSymbol(ptr[i]);
+
+        if (cptr == (OBJPTR *)dBLOCK)
+            printblock((OBJPTR *)ptr[i], space + 2);
+        else if (cptr == (OBJPTR *)dEXPR)
+            printexpr((OBJPTR *)ptr[i], space + 2);
+        else if (cptr == (OBJPTR *)dSTRING) {
+            tab(space + 2);
+            printf("STRING \"%s\"\n", (char *)ptr[i]);
+        }
+        else if (cptr == (OBJPTR *)dINTEGER) {
+            tab(space + 2);
+            printf("NUMBER %d\n", (int)(long)((OBJPTR *)ptr[i])[0]);
+        }
+        else if (cptr == (OBJPTR *)dLABEL)
+            printspec("LABEL", (OBJPTR *)ptr[i], space + 2);
+        else if (cptr == (OBJPTR *)dGOTO)
+            printspec("GOTO", (OBJPTR *)ptr[i], space + 2);
+        else if (cptr == (OBJPTR *)dPARAMETER)
+            printspec("PARAM", (OBJPTR *)ptr[i], space + 2);
+        else if (cptr == (OBJPTR *)dVAR)
+            printspec("VAR", (OBJPTR *)ptr[i], space + 2);
+        else {
+            tmp = (OBJPTR *)ptr[i];
+            tab(space + 2);
+            fputs((char *)tmp[STRPTR], stdout);
+            putchar(EOL);
+        }
+        i++;
+    }
+}
+
+/* ---- print a labelled spec (label, goto, parameter, variable) ---- */
+
+static void printspec(char *msg, OBJPTR *ptr, int space)
+{
+    char num[16];
+
+    tab(space);
+    if (msg) {
+        fputs(msg, stdout);
+        fputs(": ", stdout);
+    }
+    fputs((char *)ptr[0], stdout);
+    fputs(" = ", stdout);
+    _itoa((int)(long)ptr[1], num);
+    fputs(num, stdout);
+    putchar(EOL);
+}
+
+/* ---- indent helper ---- */
+
+static void tab(int space)
+{
+    int i;
+    for (i = 0; i < space; i++)
+        putchar(' ');
 }

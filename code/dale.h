@@ -139,6 +139,7 @@ extern int function();
 extern int class();
 extern OBJPTR expression(OBJPTR sptr, void *offset, int snum);
 extern int ersum();
+extern void dump(OBJPTR table[]);
 extern int error();
 extern int kill();
 extern int e1();

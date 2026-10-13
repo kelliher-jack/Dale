@@ -1,7 +1,7 @@
 #include "stdio.h"
 #include "dale.h"
 
-extern dump(int table[]);
+extern void dump(OBJPTR table[]);
 
 OBJPTR iadd(parameters)
         OBJPTR *parameters[];

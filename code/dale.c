@@ -130,6 +130,11 @@ main(argc,argv)
     parse();
     putchar(EOL);
     ersum();
+
+    /* dump the symbol table for debugging — shows all classes,
+       their instance variables, methods, and code blocks */
+    dump(table);
+
     if(inp) fclose(inp);
 /*      fclose(outp); */
   }
