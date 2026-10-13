@@ -7,14 +7,14 @@
  * FILES: objprim.c
  *
  * EXTERNAL PROCEDURES:
- *  OBJPTR NewInstance(ClassPtr,size)	OBJPTR ClassPtr; int size;
- *  OBJPTR GetClass(objectptr)			OBJPTR objectptr;
+ *  OBJPTR NewInstance(ClassPtr,size)   OBJPTR ClassPtr; int size;
+ *  OBJPTR GetClass(objectptr)                  OBJPTR objectptr;
  *  OBJPTR ClassSymbol(objectptr)       OBJPTR objectptr;
  */
 
 OBJPTR NewInstance(ClassPtr,size)
-	int size;
-	OBJPTR ClassPtr;
+        int size;
+        OBJPTR ClassPtr;
 {
     OBJPTR cptr;
     OBJPTR *iptr;
@@ -27,19 +27,20 @@ OBJPTR NewInstance(ClassPtr,size)
 }
 
 FreeInstance(objectptr)
-	OBJPTR *objectptr;
+        OBJPTR *objectptr;
 {
-	char *ptr;
+        char *ptr;
 
-	ptr=objectptr;
-	ptr=ptr-POINTERSIZE;
-	free(ptr);
+        ptr=objectptr;
+        ptr=ptr-POINTERSIZE;
+        free(ptr);
 }
 
 OBJPTR ClassSymbol(objectptr)
   OBJPTR *objectptr;
 {
     char *ptr;
+  if(objectptr == NULL) return(NULL);
   ptr=objectptr;
   ptr=ptr-POINTERSIZE;
   objectptr=ptr;
@@ -50,6 +51,7 @@ OBJPTR GetClass(objectptr)
   OBJPTR *objectptr;
 {
     char *ptr;
+  if(objectptr == NULL) return(NULL);
   ptr=objectptr;
   ptr=ptr-POINTERSIZE;
   objectptr=ptr;

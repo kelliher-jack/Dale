@@ -164,4 +164,7 @@ extern OBJPTR NewInstance();
 extern OBJPTR GetClass();
 extern OBJPTR ClassSymbol();
 
+#define MAXPARAMS 20
+#define MAXLOCALS 20
+
 /* end of global file */

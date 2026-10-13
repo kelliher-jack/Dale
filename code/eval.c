@@ -117,7 +117,15 @@ OBJPTR evalexpr(expr,locals)
                         OBJPTR *address;
                     /* eval object at that address */
                         address = parameters[0][0];
+                        if(*address == NULL) {
+                                printf("unbound variable\n");
+                                return(NULL);
+                        }
                         parameters[0] = eval(*address,parameters,locals);
+                        if(parameters[0] == NULL) {
+                                printf("unbound variable\n");
+                                return(NULL);
+                        }
                         class = GetClass(parameters[0]);
                 }
                 if ((methodtemplate = findprimary(class,primarymsg[STRPTR],

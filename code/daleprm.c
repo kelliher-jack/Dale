@@ -166,6 +166,7 @@ OBJPTR iprint(parameters)
 
         self = parameters[0];
         printf("%d",(int)self[0]);
+        fflush(stdout);
         return(parameters[0]);
 }
 
@@ -176,6 +177,7 @@ OBJPTR ilprint(parameters)
 
         self = parameters[0];
         printf("%d\n",(int)self[0]);
+        fflush(stdout);
         return(parameters[0]);
 }
 
@@ -186,6 +188,7 @@ OBJPTR bprint(parameters)
         self = (BOOLEAN *)parameters[0];
         if(*self) printf("TRUE");
         else printf("FALSE");
+        fflush(stdout);
         return(parameters[0]);
 }
 
@@ -196,6 +199,7 @@ OBJPTR slprint(parameters)
 
         self = parameters[0];
         printf("%s\n",self);
+        fflush(stdout);
         return(parameters[0]);
 }
 
@@ -215,6 +219,7 @@ OBJPTR oprint(parameters)
                 printf("%s",*((BOOLEAN*)self) ? "TRUE" : "FALSE");
         else
                 printf("[%p]",(void*)self);
+        fflush(stdout);
         return(parameters[0]);
 }
 

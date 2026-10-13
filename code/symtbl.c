@@ -8,9 +8,9 @@
  * FILES: symtbl.c dump.c hash.c
  *
  * EXTERNAL PROCEDURES:
- *  OBJPTR lookup(table,symbol)		OBJPTR table[]; char symbol[];
- *  OBJPTR add(table,symbol)		OBJPTR table[]; char symbol[];
- *	void dump(table)				OBJPTR table[];
+ *  OBJPTR lookup(table,symbol)         OBJPTR table[]; char symbol[];
+ *  OBJPTR add(table,symbol)            OBJPTR table[]; char symbol[];
+ *      void dump(table)                                OBJPTR table[];
  */
 
 /*
@@ -19,11 +19,11 @@
  */
 
 OBJPTR lookup(table,symbol)
-	OBJPTR  table[];
-	char symbol[];
+        OBJPTR  table[];
+        char symbol[];
 
 {
-    int pointer;
+    OBJPTR *pointer;
     OBJPTR scan();
 
     return(scan(&table[hash(symbol,(int)table[SIZE])],symbol,&pointer));
@@ -36,8 +36,8 @@ OBJPTR lookup(table,symbol)
  */
 
 OBJPTR add(table,symbol)
-	OBJPTR  table[];
-	char symbol[];
+        OBJPTR  table[];
+        char symbol[];
 
 {
     OBJPTR bucket,scan();

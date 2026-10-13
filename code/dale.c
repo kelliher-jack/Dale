@@ -30,11 +30,11 @@
 
   OBJPTR iadd(),isub(),imult(),idiv(),imod(),iequ(),inotequ(),iless();
   OBJPTR ilessequ(),igreater(),inotless(),iincr(),idecr(),iprint();
-  OBJPTR ilprint(),bprint(),slprint(),oprint(),assign(),sysdump();
+  OBJPTR ilprint(),bprint(),slprint(),oprint(),assign(),sysdump(),new();
   OBJPTR (*procedure[])() = {
         iadd,isub,imult,idiv,imod,iequ,inotequ,iless,
         ilessequ,igreater,inotless,iincr,idecr,iprint,
-        ilprint,bprint,slprint,oprint,assign,sysdump
+        ilprint,bprint,slprint,oprint,assign,sysdump,new
   };
 
   OBJPTR table[tblsize];
