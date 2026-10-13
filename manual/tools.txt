@@ -1,0 +1,311 @@
+TOOLS AND DEBUG LOG
+===================
+
+Dale Interpreter 64-bit Port and Restoration
+October 2026
+
+
+1. UNIQUE TOOL CALLS USED IN PROGRAMMING TASKS
+================================================
+
+The following is the complete list of unique tool calls (commands,
+file operations, and utilities) used during the programming tasks
+of fixing, restoring, and testing the Dale interpreter.
+
+
+1.1  Shell Commands (via bash)
+------------------------------
+
+  Tool: bash
+
+  Commands used:
+
+  gcc               - Compile C source files with warnings enabled
+                      (gcc -Wall -Wno-extra -c <file.c>)
+  make              - Build the interpreter via the Makefile
+                      (make clean; make)
+  ./dale            - Run the interpreter on test files
+                      (./dale tests/SimpleTest.d)
+  git add           - Stage files for commit
+                      (git add -A or git add <file>)
+  git commit        - Create commits with descriptive messages
+                      (git commit -m "Fix ...")
+  git push          - Push commits to GitHub remote
+                      (git push origin main)
+  git log           - View commit history
+                      (git log --oneline)
+  mkdir             - Create directories
+                      (mkdir -p /home/ubuntu/Dale/manual)
+  cat               - Display file contents for verification
+  ls                - List directory contents
+  echo              - Print strings for debugging/output
+
+1.2  File Reading Tools
+-----------------------
+
+  Tool: file_read
+    - Read individual source files (.c, .h, .d) to understand
+      code structure, find bugs, and verify edits.
+    - Used to read: dale.h, dale.c, eval.c, dale1.c, dale2.c,
+      dale3.c, dale4.c, lex.c, symtbl.c, daleprm.c, objprim.c,
+      dump.c, make.c, preproc.c, xtdio.c, ctype.c, hash.c,
+      hash.h, lists.h, expr.c, test.c, Makefile, and all test
+      (.d) files.
+
+  Tool: batch_file_read
+    - Read multiple files simultaneously for efficiency.
+    - Used to read groups of 4 source files at once during
+      code analysis and manual writing phases.
+
+1.3  File Writing Tools
+-----------------------
+
+  Tool: file_write
+    - Create new files or overwrite existing files with complete
+      content.
+    - Used to create: SimpleTest.d, dump.c (restored), manual/
+      dale-man.txt, manual/tools.txt
+    - Used to overwrite: eval.c, daleprm.c, dale.h, dale1.c,
+      symtbl.c, objprim.c, dale.c (with fixes)
+
+  Tool: batch_file_write
+    - Write multiple files at once.
+    - Used when multiple source files needed simultaneous updates.
+
+1.4  File Editing Tools
+-----------------------
+
+  Tool: file_str_replace
+    - Surgical string replacement in existing files for targeted
+      bug fixes.
+    - Used for:
+      - Changing "int pointer" to "OBJPTR *pointer" in symtbl.c
+      - Adding NULL checks in eval.c (dADDR branch)
+      - Adding NULL checks in objprim.c (GetClass, ClassSymbol)
+      - Adding fflush(stdout) to print primitives in daleprm.c
+      - Adding (int)(long) casts for pointer-to-int conversions
+      - Moving MAXPARAMS/MAXLOCALS to dale.h
+      - Fixing array sizes in dale1.c (param/locs arrays)
+      - Adding the "new" primitive to the procedure table in dale.c
+      - Restoring oprint() with type checking in daleprm.c
+      - Adding superclass chain following in eval.c findprimary()
+
+1.5  Search Tools
+-----------------
+
+  Tool: grep
+    - Search file contents for patterns using ripgrep.
+    - Used to find:
+      - All occurrences of specific function calls
+      - Pattern matches for bug identification
+      - Verify that fixes were applied consistently
+
+  Tool: glob
+    - Find files by name/extension pattern.
+    - Used to discover:
+      - All .c source files in the code/ directory
+      - All .d test files in the tests/ directory
+      - All .h header files
+
+1.6  Summary of Unique Tools
+-----------------------------
+
+  | Tool Name           | Purpose                                    |
+  |---------------------|--------------------------------------------|
+  | bash                | Shell commands (gcc, make, git, etc.)      |
+  | file_read           | Read individual files                      |
+  | batch_file_read     | Read multiple files at once                |
+  | file_write          | Create or overwrite files                  |
+  | batch_file_write    | Write multiple files at once               |
+  | file_str_replace    | Targeted string replacement in files       |
+  | grep                | Search file contents (ripgrep-based)       |
+  | glob                | Find files by name pattern                 |
+
+  Total unique tools: 8
+
+
+2. DEBUG LOOPS
+==============
+
+A "debug loop" is one cycle of: identify a problem, hypothesize a
+cause, implement a fix, rebuild, test, and verify.  The following
+enumerates each debug loop that was required to get the Dale
+interpreter from its original non-compiling state to a stable,
+working interpreter that runs the test suite to completion.
+
+
+  Loop 1: COMPILATION ERRORS
+  --------------------------
+  Problem:     The original 1984 K&R C code would not compile
+               with modern GCC.  Errors included implicit function
+               declarations, pointer/integer conversion warnings,
+               and missing #include directives.
+  Hypothesis:  K&R C was lax about prototypes and implicit int
+               returns; modern GCC requires explicit declarations.
+  Fix:         Added #include directives, fixed function prototypes
+               in dale.h, added explicit casts for pointer-to-int
+               conversions throughout.
+  Verification: Successful compilation with only warnings (no errors).
+  Commit:      aa8cb17
+
+  Loop 2: 32-TO-64-BIT PORTABILITY BUGS (STACK SMASHING)
+  ------------------------------------------------------
+  Problem:     The interpreter compiled but crashed with stack
+               smashing detection when running any test.  The crash
+               occurred in symtbl.c's lookup() function.
+  Hypothesis:  lookup() declared "int pointer" (a 32-bit int) but
+               stored an OBJPTR (a 64-bit pointer) into it, corrupting
+               the stack.  Additionally, param[] and locs[] arrays in
+               dale1.c were declared with size 2 instead of the
+               required MAXPARAMS (20) and MAXLOCALS (20).
+  Fix:         Changed "int pointer" to "OBJPTR *pointer" in
+               symtbl.c lookup().  Changed param and locs array
+               sizes from 2 to MAXPARAMS/MAXLOCALS in dale1.c.
+               Moved MAXPARAMS and MAXLOCALS definitions to dale.h
+               for global visibility.
+  Verification: Interpreter no longer crashes with stack smashing;
+               minimal test (hello.d) runs successfully.
+  Commit:      6533c48
+
+  Loop 3: RESTORING dump() WITH 64-BIT FIXES
+  ------------------------------------------
+  Problem:     The dump() function (for printing the symbol table
+               in human-readable form) was either missing or broken.
+               It needed to handle 64-bit pointers correctly and
+               produce readable output for classes, methods, and
+               code blocks.
+  Hypothesis:  The original dump used int-sized variables for
+               pointer values, causing truncation on 64-bit systems.
+  Fix:         Rewrote dump.c entirely with:
+               - Proper (int)(long) casts for pointer-to-int
+                 conversions
+               - Static function prototypes with correct types
+               - Recursive printing of classes, method tables,
+                 blocks, and expressions
+               - NULL checks throughout
+  Verification: dump() produces correct human-readable output
+               showing all classes, their superclasses, instance
+               variables, methods, and code blocks.
+  Commit:      eb312e1
+
+  Loop 4: REMOVING DEBUG PRINTS AND RESTORING oprint()
+  ----------------------------------------------------
+  Problem:     Temporary debug printf() statements were left in
+               eval.c from earlier debugging sessions, polluting
+               output.  Additionally, oprint() (the polymorphic
+               print primitive) was either missing or incorrectly
+               implemented.
+  Hypothesis:  Debug prints were added during Loop 2 debugging
+               and never removed.  oprint() needed to dispatch on
+               the object's class (string, integer, boolean, or
+               other) and print appropriately.
+  Fix:         Removed all temporary debug printf/fflush calls from
+               eval.c.  Restored oprint() in daleprm.c with:
+               - Class dispatch via ClassSymbol()
+               - String printing via printf("%s")
+               - Integer printing via printf("%d", (int)(long)...)
+               - Boolean printing of "TRUE"/"FALSE"
+               - Fallback hex pointer printing for unknown types
+               - fflush(stdout) after all output
+  Verification: Clean output with no debug noise; oprint correctly
+               prints integers, strings, and booleans.
+  Commit:      e4ffd83
+
+  Loop 5: SEGFAULTS FROM NULL POINTERS
+  ------------------------------------
+  Problem:     The interpreter segfaulted when evaluating
+               expressions that involved unbound variables or
+               NULL objects, particularly in the dADDR branch of
+               eval().  Also, GetClass() and ClassSymbol() in
+               objprim.c crashed when passed NULL pointers.
+  Hypothesis:  The eval() function's dADDR branch dereferenced
+               addresses without checking for NULL.  GetClass()
+               and ClassSymbol() backed up one pointer-width from
+               the object pointer without verifying the input was
+               non-NULL.  Print primitives lacked fflush(stdout),
+               causing output to appear out of order or not at all.
+  Fix:         - Added NULL checks in eval.c dADDR branch: check
+                 if the address pointer is NULL and if the
+                 dereferenced value is NULL before evaluating.
+               - Added NULL checks at the top of GetClass() and
+                 ClassSymbol() in objprim.c (return NULL if input
+                 is NULL).
+               - Added fflush(stdout) to all print primitives
+                 (iprint, ilprint, bprint, slprint, oprint) in
+                 daleprm.c.
+  Verification: No more segfaults; unbound variables print
+               "unbound variable" or "unbound symbol" warnings
+               instead of crashing.  Output appears in correct
+               order.
+  Commit:      8bc473f
+
+  Loop 6: findprimary() SUPERCLASS CHAIN
+  --------------------------------------
+  Problem:     Message dispatch failed for classes that inherited
+               methods from superclasses.  findprimary() searched
+               only the current class's method table and returned
+               NULL if the method was not found there, even if a
+               superclass defined the method.
+  Hypothesis:  findprimary() did not follow the superclass pointer
+               (class[0]) when the method was not found in the
+               current class's method table.  This was a logic bug
+               in the original code -- the superclass chain code
+               was missing or incomplete.
+  Fix:         Added recursive superclass chain following in
+               findprimary():
+               - After searching the current class's method table
+                 and not finding a match, get the superclass via
+                 aClass[0].
+               - If the superclass is non-NULL and has a bound
+                 class object (superclass[OBJPR] != NULL),
+                 recursively call findprimary() on the superclass.
+               - If the superclass is NULL or unbound, return NULL
+                 (method not found).
+  Verification: Methods inherited from superclasses (e.g., "print"
+               inherited from "object") are now found and executed
+               correctly.
+  Commit:      8bc473f (included in same commit as Loop 5)
+
+  Loop 7: UNARY METHOD CALLS REUSING CALLER'S LOCALS
+  ---------------------------------------------------
+  Problem:     Unary method calls (e.g., "print", "++") produced
+               incorrect results or crashed because they reused
+               the caller's locals[] array instead of getting a
+               fresh one.  This caused variable lookups inside the
+               called method to read garbage values from the
+               caller's stack frame.
+  Hypothesis:  In evalexpr(), both the binary and unary method
+               invocation paths evaluated the method block using
+               the caller's locals[] array.  Each method invocation
+               should get its own fresh newlocals[] array (all NULL)
+               so that local variable references inside the method
+               resolve correctly.
+  Fix:         Added initialization of a fresh newlocals[] array
+               (all slots set to NULL) before evaluating the method
+               block in both the binary and unary code paths of
+               evalexpr().  The newlocals array is passed as the
+               locals argument to eval() when evaluating the method
+               block.
+  Verification: Unary methods (print, lprint, etc.) now execute
+               correctly with proper variable isolation.  Test suite
+               runs to completion with 12 of 15 tests passing.
+  Commit:      8bc473f (included in same commit)
+
+
+3. SUMMARY
+==========
+
+  Total unique tools used:           8
+  Total debug loops:                 7
+  Git commits made:                  5
+  Tests passing:                     12 of 15
+  Tests failing (language design):   3
+
+  The 3 remaining test failures are not bugs in the 64-bit port
+  but rather language design decisions in the original 1984
+  interpreter:
+    - Increment/decrement do not modify variables in place
+    - No operator precedence (left-to-right evaluation)
+    - Unbound instance variables (feature not fully implemented)
+
+  See Chapter 2 (To Be Done) of dale-man.txt for details.

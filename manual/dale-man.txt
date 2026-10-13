@@ -1,0 +1,1543 @@
+
+
+
+                           DALE LANGUAGE MANUAL
+                           ====================
+
+                     A Description of the Dale Language
+                    and the Dale Interpreter Source Code
+
+                        (C) 1984 Jack S. Kelliher
+                  64-bit Port and Restoration: October 2026
+
+========================================================================
+
+  Chapter 1:  Description of Dale
+  Chapter 2:  To Be Done
+  Chapter 3:  Description of the Dale Interpreter
+  Chapter 4:  Code Outline
+
+========================================================================
+
+
+  CHAPTER 1:  DESCRIPTION OF DALE
+  =================================
+
+  1.1  Overview
+  -------------
+
+  Dale is a Smalltalk-like, object-oriented programming language
+  designed and implemented by Jack S. Kelliher in 1984.  It was
+  written in K&R C for 16-bit Unix systems of the era.  The language
+  supports classes, instances, methods, message passing, inheritance
+  (single superclass), blocks (closures), integer and boolean
+  primitive types, string literals, variables, labels and gotos,
+  and a primitive call mechanism that bridges Dale code to C
+  functions compiled into the interpreter.
+
+  Dale is a pure object-oriented language in the Smalltalk tradition:
+  every value is an object, computation proceeds by sending messages
+  to objects, and the interpreter maintains a single global symbol
+  table that holds class definitions, method code, and variable
+  bindings.  Unlike Smalltalk, Dale is compiled to an in-memory
+  object graph (not bytecodes) and evaluated by a tree-walking
+  interpreter.
+
+
+  1.2  Syntax
+  -----------
+
+  Dale source files use the ".d" extension.  The syntax is
+  keyword-based rather than bracket-based.  Statements are
+  terminated with semicolons.  The major syntactic forms are:
+
+  1.2.1  Class Definition
+
+     class <name>
+       superclass: <name>
+       instance variables:
+         <var1> <type1>; <var2> <type2>.
+       class methods:
+         <domain> <methods>
+       instance methods:
+         <domain> <methods>
+     endclass.
+
+  The "superclass:" clause is optional.  If omitted, the class has
+  no superclass (its superclass slot is NULL).  The "instance
+  variables:" clause declares variables with name and type, separated
+  by semicolons and terminated by a period.  The "class methods:"
+  and "instance methods:" sections define methods in domains
+  (external, internal, or xclass).  Each section is optional but
+  "instance methods:" with at least one domain keyword is expected.
+
+  1.2.2  Domains
+
+  Methods are grouped into three domains:
+
+     external   - methods callable from outside the class (the
+                  normal message-passing interface)
+     internal   - methods callable only from within the class
+                  (private methods)
+     xclass     - class methods (sent to the class itself rather
+                  than to an instance; analogous to Smalltalk's
+                  "class methods")
+
+  If no domain keyword appears before methods, "external" is assumed
+  by default.
+
+  1.2.3  Method Definition
+
+  A method consists of a message pattern, optional argument type
+  declarations, and a body (either a block or a primitive call).
+
+  Message patterns come in three forms:
+
+     a) Unary (no arguments):
+           print
+           ++
+
+     b) Binary (one argument, operator-style):
+           + $ anInteger
+           == $ anInteger
+
+     c) Keyword (one or more arguments, named):
+           to:$ num step$ step
+           at:$ anInteger
+
+  The "$" token separates the selector keyword from the argument
+  name.  The "&" token is used for value-passing semantics (a
+  feature partially implemented).  Multiple keyword-argument pairs
+  chain together to form a compound selector like "to:step:".
+
+  1.2.4  Blocks
+
+  Blocks are Dale's closure mechanism, delimited by "($ ... $)":
+
+     ($
+       var a integer; b integer.
+       a <- 10;
+       b <- 20;
+       a + b;
+     $)
+
+  A block may declare local variables with "var", followed by a
+  list of name/type pairs terminated by a period.  The block body
+  is a sequence of semicolon-terminated statements.  The value of
+  a block is the value of its last expression.  A "return"
+  statement forces early return from the enclosing method.
+
+  1.2.5  Expressions
+
+  Expressions are left-associative chains of message sends.  The
+  general form is:
+
+     <subject> <message1> <argument1> <message2> <argument2> ...
+
+  For example:
+
+     10 + 20 print
+
+  is parsed as (10 + 20) print, because parsing is left-to-right
+  with no operator precedence.  Parentheses can override this:
+
+     (a + b) * c
+
+  Assignment uses the "<-" operator:
+
+     a <- 10;
+
+  Labels and gotos are supported within blocks:
+
+     label: loop;
+     ...
+     goto loop;
+
+  1.2.6  Primitives
+
+  Methods that cannot be expressed in Dale itself are implemented
+  as "primitive call N", where N is an index into a C function
+  pointer table.  For example:
+
+     + $ anInteger
+       primitive call 0
+
+  The primitive function receives an array of parameter pointers,
+  where parameters[0] is always "self".
+
+  1.2.7  Top-Level Statements
+
+  Outside of class definitions, Dale supports top-level expression
+  statements terminated with semicolons.  These are evaluated
+  immediately by the read-eval-print loop.  For example:
+
+     "Hello World" lprint;
+
+  or
+
+     Main new runTests;
+
+  1.2.8  Diphthongs
+
+  Dale uses a "diphthong" preprocessing step that recognizes
+  multi-character tokens and surrounds them with spaces so the
+  parser can treat them as single tokens.  Built-in diphthongs
+  include "()", ";", "&", "$", and "<-".  Additional diphthongs
+  can be declared with "#dipthong" directives.
+
+  1.2.9  Comments
+
+  C-style comments (/* ... */) are supported and stripped by the
+  preprocessor.
+
+
+  1.3  Built-in Classes and Primitives
+  -------------------------------------
+
+  The interpreter defines the following base classes that Dale
+  programs build upon:
+
+  1.3.1  integer
+
+  Stores a single integer value.  Primitives:
+
+     Index  Operation
+     0      + (addition)
+     1      - (subtraction)
+     2      * (multiplication)
+     3      / (integer division)
+     4      % (modulo)
+     5      == (equality)
+     6      != (inequality)
+     7      <  (less than)
+     8      <= (less or equal)
+     9      >  (greater than)
+     10     >= (greater or equal)
+     11     ++ (increment - returns new value)
+     12     -- (decrement - returns new value)
+     13     print (print integer without newline)
+     14     lprint (print integer with newline)
+
+  1.3.2  boolean
+
+  Stores a TRUE/FALSE value.  Primitive:
+
+     15     print (prints "TRUE" or "FALSE")
+
+  1.3.3  string
+
+  Stores a character string.  Primitive:
+
+     16     lprint (print string with newline)
+
+  1.3.4  object
+
+  The root class.  Provides:
+
+     17     print (polymorphic print via oprint)
+     20     new  (class method - creates a new instance)
+
+  1.3.5  _block
+
+  Represents a code block (closure).  Has no external methods; its
+  evaluation is handled directly by the interpreter's eval engine.
+
+  1.3.6  _address
+
+  Represents a reference to a variable slot.  Supports:
+
+     18     _asign $ aValue (assignment to the addressed location)
+
+  1.3.7  sys
+
+  System utilities.  Provides:
+
+     19     dump (class method - dumps the entire symbol table)
+
+  1.3.8  Internal Types
+
+  The interpreter uses several internal "classes" that are not
+  directly accessible to Dale programmers but appear in the object
+  model:
+
+     _class      - class definition objects
+     _methods    - method table objects (per domain)
+     _msg        - message pattern template objects
+     _expr       - expression list objects
+     _exprlist   - linked-list expression objects (for evaluation)
+     _var        - local variable reference objects
+     _parameter  - parameter reference objects
+     _symbol     - symbol table entry objects
+     _variables  - instance variable declaration list objects
+     _primitive  - primitive call objects
+     _label      - label objects
+     _goto       - goto objects
+     _function   - function definition objects
+     _code       - inline code block objects
+     _dale       - top-level dale program objects
+
+
+  1.4  Object Model
+  -----------------
+
+  Every Dale object is a pointer to a region of memory allocated
+  by NewInstance().  The allocation prepends a "class pointer"
+  (one OBJPTR) before the user-visible data.  Thus the layout is:
+
+     [class_ptr | data_slot_0 | data_slot_1 | ... ]
+
+  The class pointer is the class symbol (an OBJPTR pointing to the
+  class definition object).  ClassSymbol() retrieves it by looking
+  one pointer-width behind the user pointer.  GetClass() follows
+  the class symbol to the actual class definition object.
+
+  Class definition objects (_class) have this layout:
+
+     [0]  superclass symbol (or NULL)
+     [1]  instance variable list (a _variables object)
+     [2]  INTERNAL methods table (or NULL)
+     [3]  EXTERNAL methods table (or NULL)
+     [4]  XCLASS methods table (or NULL)
+     [5]  class name string
+
+  Method tables (_methods) have this layout:
+
+     [0]      count (number of method pairs)
+     [1..]    pairs of (template, code_block)
+
+  Where each "template" is a _msg object containing the message
+  selector pattern, and each "code_block" is either a _block
+  (user Dale code) or a _primitive (C function call).
+
+  Instance variable lists (_variables) have this layout:
+
+     [0]      search pointer (parent variable scope, or NULL)
+     [1]      count of variables
+     [2..]    triples of (name_string, type_string, offset)
+
+  Blocks (_block) have this layout:
+
+     [0]      count of expressions
+     [1]      variable list (local variables of the block)
+     [2..]    expression pointers
+
+
+  1.5  Message Dispatch
+  ---------------------
+
+  When a message is sent to an object, the interpreter:
+
+  1. Evaluates the subject (the receiver) to get an object.
+  2. Gets the class of the receiver via GetClass().
+  3. Calls findprimary() to search the class's method table for
+     the appropriate domain (EXTERNAL, INTERNAL, or XCLASS).
+  4. If not found, findprimary() follows the superclass chain
+     recursively.
+  5. If found, the method's code block is evaluated with a fresh
+     set of local variables and the parameter array.
+  6. If the method is a primitive, the C function is called
+     directly through the procedure[] function pointer array.
+
+
+  1.6  Inheritance
+  ----------------
+
+  Dale supports single inheritance.  Each class has at most one
+  superclass.  When a message is not found in a class's own method
+  table, the interpreter walks up the superclass chain (via the
+  superclass pointer at class[0]) until it finds a matching method
+  or reaches a class with no superclass.
+
+  Instance variables are not inherited through the normal lookup
+  mechanism in the current implementation -- each class defines its
+  own instance variables.  The "search pointer" in _variables
+  objects is intended to chain variable scopes but is only partially
+  functional.
+
+
+  CHAPTER 2:  TO BE DONE
+  ========================
+
+  This chapter documents known issues, limitations, and areas for
+  future work in the Dale interpreter.  The issues are categorized
+  as (A) language design limitations that were present in the
+  original 1984 interpreter, and (B) items that would improve the
+  interpreter's functionality and robustness.
+
+  2.A  Known Issues (Original Language Design)
+  ---------------------------------------------
+
+  2.A.1  Increment/Decrement Do Not Modify In Place
+
+     The ++ and -- primitives (indices 11 and 12) create and return
+     a NEW integer object with the incremented or decremented value.
+     They do NOT modify the variable in place.  Thus:
+
+        i <- 5;
+        i ++;
+        i print;    -- prints 5, not 6
+
+     To fix this, ++ and -- would need to be treated specially in
+     the evaluator: detect that the receiver is a _address (variable
+     reference), compute the new value, and assign it back through
+     the address.  Alternatively, the primitives could receive the
+     address object and perform the assignment themselves.
+
+  2.A.2  No Operator Precedence
+
+     Dale evaluates expressions strictly left-to-right with no
+     operator precedence.  Thus:
+
+        10 + 5 * 2   -- evaluates as (10 + 5) * 2 = 30, not 20
+
+     Parentheses must be used to override evaluation order.  This
+     was a design decision in the original language, not a bug.
+     Adding precedence would require restructuring the expression
+     parser to use precedence-climbing or a Pratt parser.
+
+  2.A.3  Unbound Instance Variables
+
+     Instance variables declared in a class are stored in the class
+     definition, but when a new instance is created, the instance
+     variable slots are not properly initialized or bound.  When
+     code references an instance variable (e.g., "result" or
+     "value"), the interpreter prints "unbound symbol" warnings.
+     The variable lookup mechanism (blockvar() in make.c) searches
+     local block variables and method parameters but does not
+     fully search instance variable lists of the current object.
+
+  2.A.4  N-ary Parameters Not Implemented
+
+     The evaluator prints "n-ary parameters not implemented yet"
+     when it encounters a keyword message with more than one
+     argument.  Only unary and binary (single-argument) messages
+     are fully supported in the evaluation engine.  Keyword
+     messages with multiple arguments (e.g., "to:step:") parse
+     correctly but cannot be evaluated.
+
+  2.A.5  Block Evaluation for Control Flow
+
+     Blocks exist and parse correctly, but the control-flow
+     patterns common in Smalltalk-like languages (ifTrue:, ifFalse:,
+     whileTrue:, whileFalse:) are not implemented as built-in
+     methods.  These would need to be added either as primitives
+     or as Dale-level methods on boolean and block classes.
+
+  2.A.6  Return Statement
+
+     The "return" statement is parsed and stored in the expression
+     list, but the evaluator does not implement non-local return
+     from blocks.  A "return" inside a block should exit the
+     enclosing method, not just the block.  Currently, the block
+     evaluator simply evaluates each expression in sequence and
+     returns the last value.
+
+  2.A.7  Function Definitions
+
+     The "function" keyword is recognized by the parser, but
+     MkFctn() is a stub that prints "MkFctn()" and does nothing.
+     Function definitions are not fully implemented.
+
+  2.A.8  Inline Code Blocks
+
+     The "primitive code" form is recognized by the parser, but
+     MkCode() is a stub that prints "MkCode()" and does nothing.
+     Inline C-like code blocks are not implemented.
+
+  2.A.9  Include Files
+
+     The "#include" mechanism is partially present (inp2 file
+     pointer for includes), but no directive currently triggers
+     an include operation.
+
+  2.B  Improvement Opportunities
+  -------------------------------
+
+  2.B.1  Remove Debug Print Statements
+
+     The parser still contains printf/fflush calls that were used
+     during debugging (in dale2.c, dale3.c, make.c).  These should
+     be removed or gated behind the OptionL flag for production use.
+
+  2.B.2  Memory Management
+
+     The interpreter uses malloc() for all object allocation and
+     FreeInstance() for deallocation, but there is no garbage
+     collector.  Long-running programs will leak memory.  A mark-
+     and-sweep or reference-counting collector would be valuable.
+
+  2.B.3  Error Recovery
+
+     The error() function prints the error location and continues
+     parsing, but error recovery is crude (the kill() function
+     simply clears the current line).  Better synchronization and
+     recovery would improve the development experience.
+
+  2.B.4  Integer Truncation on 64-bit
+
+     Several primitives still cast pointer values to int for
+     arithmetic (e.g., (int)self[0]).  On 64-bit systems, this
+     truncates pointers.  While this works for small integer
+     values stored as pointers, it is technically undefined
+     behavior.  A long-term fix would use intptr_t or a tagged
+     value representation.
+
+  2.B.5  Test Suite Expansion
+
+     The current test suite (SimpleTest.d) covers 15 tests of
+     basic arithmetic, comparison, strings, and variables.  The
+     suite should be expanded to cover inheritance, blocks,
+     control flow (once implemented), and error handling.
+
+  2.B.6  Documentation
+
+     This manual is the primary documentation.  Additional
+     documentation could include a language reference, a tutorial,
+     and an architectural document for contributors.
+
+
+  CHAPTER 3:  DESCRIPTION OF THE DALE INTERPRETER
+  =================================================
+
+  3.1  Architecture Overview
+  --------------------------
+
+  The Dale interpreter is a classic tree-walking interpreter with
+  a multi-pass architecture:
+
+     Source text
+         |
+         v
+     [Preprocessor]  -- diphthong expansion, comment stripping
+         |
+         v
+     [Lexer]         -- token recognition (identifiers, keywords,
+         |               numbers, strings)
+         v
+     [Parser]        -- recursive-descent parser building an
+         |               in-memory object graph
+         v
+     [Evaluator]     -- tree-walking interpreter that evaluates
+                         the object graph
+
+  The interpreter reads source files specified on the command line.
+  For each file, it calls parse(), which processes statements one
+  at a time in a read-eval-print loop: class definitions are stored
+  in the symbol table, and top-level expressions are evaluated
+  immediately.
+
+  After processing all input, the interpreter calls ersum() to
+  report error counts and dump() to print the symbol table.
+
+
+  3.2  Preprocessor (preproc.c)
+  -----------------------------
+
+  The preprocessor transforms each input line before the lexer sees
+  it.  Its responsibilities are:
+
+  - Strip C-style comments (/* ... */).
+  - Recognize diphthongs (multi-character tokens like "<-", "$(",
+    "$)", etc.) and surround them with spaces so the parser can
+    match them as single tokens.
+  - Strip carriage returns.
+  - Handle quoted strings (preserving spaces and special chars
+    inside quotes).
+  - Optionally echo the preprocessed line (controlled by OptionL).
+
+  Key functions:
+     preprocess()  - main preprocessing routine
+     blanks()      - skip whitespace, calling do_inline() when
+                     the line buffer is exhausted
+     do_inline()   - read the next line from the input file
+     match(lit)    - try to match a literal string at the current
+                     position; advance past it on success
+     keepch(c)     - store a character in the output buffer
+
+
+  3.3  Lexer (lex.c)
+  -------------------
+
+  The lexer recognizes three token types: numbers, identifiers,
+  and keywords.  It does not produce a token stream; instead, the
+  parser calls lexer functions directly at each point where it
+  expects a particular token.
+
+  Key functions:
+     number(val)    - parse an integer literal (supports +/- signs,
+                      octal prefix 0, and hex prefix 0x).  Returns
+                      the value in val[0].
+     identifier(id) - parse an identifier (letters, digits, hyphens,
+                      underscores; must start with a letter or
+                      underscore).  Checks the reserved-word list
+                      and returns FALSE for reserved words.
+     keyword(id)    - parse a keyword (any non-delimiter sequence
+                      up to whitespace).  Also checks reserved words.
+     reserved(p)    - check if the string at position p is a
+                      reserved word (return, var, instance,
+                      endclass, external, primitive, internal,
+                      goto, label).
+
+  Character classification uses a custom _ctype_ table (ctype.c)
+  rather than the standard <ctype.h> functions, for compatibility
+  with the original K&R C environment.
+
+
+  3.4  Parser (dale1.c, dale2.c, dale3.c, dale4.c)
+  -------------------------------------------------
+
+  The parser is a recursive-descent parser spread across four
+  files.  It builds an in-memory object graph using constructor
+  functions from make.c.
+
+  3.4.1  dale1.c -- Top-Level Parser
+
+     parse()         - main parse loop.  Processes statements until
+                       EOF.  For each statement, calls dalestatement().
+                       If the result is a class, stores it as
+                       currentobject.  If it is an expression,
+                       evaluates it immediately.
+     dalestatement() - dispatches to function(), class(), or
+                       expression() based on the leading keyword.
+     adddip()        - processes #dipthong directives.
+     error()         - prints an error message with source context.
+     kill()          - clears the current line (error recovery).
+     ersum()         - prints the error count summary.
+     e1()..e7()      - predefined error messages.
+
+  3.4.2  dale2.c -- Class and Function Parsing
+
+     function()      - parses a "function ... method:" definition.
+                       (Partially implemented - MkFctn is a stub.)
+     class()         - parses a class definition: name, superclass,
+                       instance variables, class methods, instance
+                       methods.  Calls MkClass(), AddSuper(),
+                       MkInstance() for variables, and methods()
+                       for each method.
+     expression()    - parses an expression: a primary followed by
+                       messages, or a label, or a goto, or an
+                       assignment.  Returns an _expr object.
+     domainswitch()  - matches "external", "internal", or
+                       "xclass" keywords.
+
+  3.4.3  dale3.c -- Statement and Message Parsing
+
+     sexpression()   - parses a sequence of expressions separated
+                       by semicolons.
+     statements()    - like sexpression() but also handles "return".
+     message()       - parses a message selector (keyword + optional
+                       parameter chain).
+     parameter()     - parses a parameter (primary + optional
+                       message).
+     primary()       - parses a primary expression: identifier,
+                       number, block, parenthesized expression, or
+                       string literal.
+     block()         - parses a ($ ... $) block: variable
+                       declarations and statement list.
+     vardeclaration()- parses "var" declarations inside a block.
+     varlist()       - parses a list of variable name/type pairs
+                       separated by semicolons.
+     methods()       - parses a single method: message pattern,
+                       argument types, and body (block or primitive).
+     fmethod()       - parses a function method (for "function"
+                       definitions).
+
+  3.4.4  dale4.c -- Message Patterns and Primitives
+
+     mpattern()      - parses a message pattern (keyword + optional
+                       vpattern/epattern).
+     vpattern()      - parses a value-argument pattern (& name).
+     epattern()      - parses an eval-argument pattern ($ name).
+     ppattern()      - parses a "self-msg" pattern (for functions).
+     evalarg()       - parses a $ argument.
+     valarg()        - parses a & argument.
+     primitive()     - parses "primitive call N" or "primitive code".
+                       Returns a _primitive object (MkCall) or
+                       triggers MkCode (stub).
+
+
+  3.5  Object Constructors (make.c)
+  ----------------------------------
+
+  make.c contains all the functions that build Dale objects in
+  memory:
+
+     MkClass(id)        - create a _class object and enter it in
+                          the symbol table.  Sets currentclass.
+     AddSuper(id)       - set the superclass of currentclass.
+     MkInstance(list,size,searchptr)
+                        - create a _variables object from a list
+                          of name/type/offset triples.
+     MkBlock(vptr,list,size)
+                        - create a _block object from a variable
+                          list and expression list.
+     MkMsg(list,size,methodlist,index)
+                        - create a _msg (message template) object.
+     MkProc(blockptr,methodlist,index)
+                        - store a code block or primitive as the
+                          body of a method.
+     MkExpr(list,size)  - create an _expr (expression list) object.
+     MkNum(num)         - create an integer object.
+     MkLabel(id,class,exprnum)
+                        - create a _label or _goto object.
+     MkVar(str,offset,class)
+                        - create a _var (variable reference) or
+                          _parameter (parameter reference) object.
+     blockvar(id,searchptr)
+                        - look up an identifier as a local variable
+                          or parameter in the current scope.  Returns
+                          a _var or _parameter object, or NULL if
+                          the identifier is not a local variable.
+     MkString(str,size) - create a string object.
+     MkCall(index)      - create a _primitive object (C function
+                          call reference).
+     MkMethods(list,size)
+                        - create a _methods table and attach it to
+                          the current class.
+     MkFctn()           - stub (prints "MkFctn()").
+     MkCode()           - stub (prints "MkCode()").
+
+
+  3.6  Evaluator (eval.c)
+  -----------------------
+
+  The evaluator walks the object graph produced by the parser and
+  executes it.  It is the heart of the interpreter.
+
+  3.6.1  eval()
+
+     eval(object, parameters, locals) dispatches on the class of
+     the object:
+
+     - dSYMBOL:   look up the symbol's bound value.  If unbound,
+                  print "unbound symbol" and return NULL.
+     - dVAR:      create a _address object pointing to the local
+                  variable slot.
+     - dADDR:     dereference the address: evaluate the object at
+                  the pointed-to location.
+     - dPARAMETER: return the parameter at the given index.
+     - dEXPR:     call evalexpr() to evaluate an expression list.
+     - dEXPRLIST: call evalexpr() on the linked-list form.
+     - dPRIM:     call the C function at procedure[object[0]].
+     - dBLOCK:    call evalblock() to evaluate a code block.
+     - otherwise: return the object as-is (integer, boolean,
+                  string, class, etc.).
+
+  3.6.2  evalexpr()
+
+     evalexpr(expr, locals) evaluates a linked list of message
+     sends.  The first element is the subject (receiver).  Each
+     subsequent element is a message.  For each message:
+
+     1. Get the class of the current receiver.
+     2. Call findprimary() to find the method.
+     3. If the method has a parameter (binary), evaluate the next
+        expression as the argument.
+     4. If the method is unary, evaluate the method block directly.
+     5. Create a fresh newlocals[] array (all NULL) for each
+        method invocation.
+     6. The result becomes the receiver for the next message.
+
+  3.6.3  evalblock()
+
+     evalblock(block, parameters, locals) evaluates each expression
+     in a block in sequence and returns the last result.  Local
+     variables come from the block's variable list.
+
+  3.6.4  findprimary()
+
+     findprimary(aClass, PrimaryMsg, rtnblock, env) searches a
+     class's method table for a message.  If not found, it follows
+     the superclass chain recursively.  Returns the method template
+     and sets rtnblock to the code block.
+
+     The env parameter selects which method table to search:
+     INTERNAL (2), EXTERNAL (3), or XCLASS (2 for class methods).
+
+
+  3.7  Primitive Functions (daleprm.c)
+  -------------------------------------
+
+  daleprm.c implements the C functions that back Dale's "primitive
+  call N" declarations.  Each function receives a parameter array
+  where parameters[0] is always "self".
+
+  The procedure[] array in dale.c maps indices to functions:
+
+     Index  Function     Operation
+     0      iadd         integer addition
+     1      isub         integer subtraction
+     2      imult        integer multiplication
+     3      idiv         integer division
+     4      imod         integer modulo
+     5      iequ         equality (returns boolean)
+     6      inotequ      inequality (returns boolean)
+     7      iless        less-than (returns boolean)
+     8      ilessequ     less-or-equal (returns boolean)
+     9      igreater     greater-than (returns boolean)
+     10     inotless     greater-or-equal (returns boolean)
+     11     iincr        increment (returns new integer)
+     12     idecr        decrement (returns new integer)
+     13     iprint       print integer (no newline)
+     14     ilprint      print integer (with newline)
+     15     bprint       print boolean ("TRUE"/"FALSE")
+     16     slprint      print string (with newline)
+     17     oprint       polymorphic print (dispatches on class)
+     18     assign       assignment to a variable address
+     19     sysdump      dump the symbol table
+     20     new          create a new instance of a class
+
+  Each primitive creates a new object via NewInstance() to hold
+  the result, following the Smalltalk convention that primitives
+  do not mutate their arguments (except for assign, which modifies
+  the addressed location).
+
+
+  3.8  Symbol Table (symtbl.c, hash.c)
+  -------------------------------------
+
+  The symbol table is a hash table with chaining.  hash.c provides
+  the hashing and chain management; symtbl.c provides the public
+  lookup() and add() interface.
+
+  3.8.1  hash.c
+
+     hash(s, tablesize)  - computes a hash value for string s
+                           using a magic-number multiplier (59)
+                           and modular arithmetic.
+     scan(head, id, ptr) - searches a bucket chain for a symbol.
+                           Returns the bucket if found, NULL
+                           otherwise.  Sets ptr to the previous
+                           bucket (for insertion).
+     insert(name, item, hear)
+                          - creates a new symbol entry (dSYMBOL
+                           object with 3 slots: link, string,
+                           object-pointer) and appends it to the
+                           chain.
+     mkname(id)           - creates a string object for a symbol
+                           name.
+     init_table(table, size)
+                          - initializes the hash table, storing
+                           the size in table[0].
+
+  3.8.2  symtbl.c
+
+     lookup(table, symbol)
+                        - hashes the symbol and scans the bucket
+                          chain.  Returns the object pointer if
+                          found, NULL otherwise.
+     add(table, symbol) - if the symbol exists, returns the
+                          existing bucket.  Otherwise, creates a
+                          new entry and returns it.
+
+  3.8.3  hash.h
+
+     Defines constants for slot indices within symbol entries:
+
+        LNKPTR = 0   (link to next entry in chain)
+        STRPTR = 1   (pointer to the symbol name string)
+        KEY    = 1   (alias for STRPTR)
+        OBJPR  = 2   (pointer to the bound object)
+        VALUE  = 2   (alias for OBJPR)
+        SIZE   = 0   (in the table array: table size)
+        HASHSIZE = 20 (but actually overridden by tblsize=128
+                       in dale.h)
+
+
+  3.9  Object Primitives (objprim.c)
+  -----------------------------------
+
+  objprim.c provides the foundational object allocation and class
+  introspection functions:
+
+     NewInstance(ClassPtr, size)
+                        - allocates size+POINTERSIZE bytes via
+                          malloc(), stamps the class pointer at
+                          the front, and returns a pointer past
+                          the class pointer (to the data area).
+     FreeInstance(objectptr)
+                        - frees an object by backing up one
+                          pointer-width and calling free().
+     ClassSymbol(objectptr)
+                        - returns the class symbol (the class
+                          pointer stored in front of the object).
+                          Returns NULL if objectptr is NULL.
+     GetClass(objectptr)
+                        - returns the class definition object
+                          by following the class symbol to its
+                          bound object.  Returns NULL if
+                          objectptr is NULL.
+
+
+  3.10  Dump Facility (dump.c)
+  -----------------------------
+
+  dump.c provides a human-readable dump of the entire symbol
+  table.  It walks every bucket in the hash table and, for each
+  entry, prints:
+
+  - The symbol name and its class.
+  - If the entry is a class (_class), prints:
+    - Superclass name (if any).
+    - Instance variables (name, type, offset).
+    - Method tables for each domain (INTERNAL, EXTERNAL, XCLASS),
+      showing each method's message pattern and code block or
+      primitive call index.
+  - Code blocks are recursively printed, showing their local
+    variables and expressions.
+  - Expressions are printed element by element, showing numbers,
+    strings, labels, gotos, variables, parameters, and nested
+    blocks/expressions.
+
+  The dump is called after parsing completes (in main()) and can
+  also be triggered at runtime via the "sys dump" primitive.
+
+
+  3.11  Utility Modules
+  ----------------------
+
+  3.11.1  xtdio.c
+
+     Extended I/O utilities:
+     getarg(n, s, size, argc, argv) - extract command-line argument.
+     normalize(fname, fext)         - convert filename to uppercase
+                                      and add extension if missing.
+     find(addr, len, ch)            - find character in string.
+     _itoa(n, s)                    - integer to ASCII conversion.
+     reverse(s)                     - reverse a string in place.
+
+  3.11.2  ctype.c
+
+     A 256-entry character classification table with bits for
+     uppercase (_U), lowercase (_L), numeric (_N), space (_S),
+     punctuation (_P), control (_C), and hex digit (_X).  Indexed
+     by (char)+1 for compatibility with the original K&R C usage
+     pattern.
+
+  3.11.3  lists.h
+
+     Defines a doubly-linked list type (LIST) and macros for
+     traversal (NEXT, PREV, ITEM, CLASS).  Used by eval.c to
+     convert expression arrays into linked lists for evaluation.
+     Includes inline functions: ninsert(), place(), GetValPtr(),
+     ExprToList(), FreeInstance().
+
+  3.11.4  expr.c
+
+     Currently near-empty.  ExprToList() is defined as an inline
+     function in lists.h.  This file is retained for future
+     list-specific helpers.
+
+
+  3.12  Build System (Makefile)
+  -----------------------------
+
+  The Makefile compiles all source files with gcc and links them
+  into the "dale" executable.  Key settings:
+
+     CC = gcc
+     CFLAGS = -Wall -Wno-extra
+
+  Source files (excluding test.c, which is a standalone test):
+
+     ctype.c dale.c dale1.c dale2.c dale3.c dale4.c
+     daleprm.c dump.c eval.c expr.c hash.c lex.c
+     lists.c make.c objprim.c preproc.c symtbl.c xtdio.c
+
+  A separate target "test_lists" builds test.c as a standalone
+  unit test for the lists.h data structures.
+
+
+  3.13  Command-Line Interface
+  ----------------------------
+
+  Usage:  dale <file1.d> [file2.d] ...
+
+  If no files are given, the interpreter reads from stdin.
+
+  For each file, the interpreter:
+  1. Opens the file.
+  2. Calls parse() to process all statements.
+  3. Calls ersum() to report errors.
+  4. Calls dump() to print the symbol table.
+  5. Closes the file.
+
+  The -L option (OptionL) enables preprocessed line echoing for
+  debugging.
+
+
+  CHAPTER 4:  CODE OUTLINE
+  ==========================
+
+  This chapter provides a file-by-file outline of the source code,
+  listing every function and its purpose.
+
+  4.1  dale.h -- Global Header
+  ----------------------------
+
+  Includes: stdio.h, stdlib.h, string.h, ctype.h
+
+  Defines:
+     TRUE, FALSE, BOOLEAN
+     _U, _L, _N, _S, _P, _C, _X (character class bits)
+     EOL, INTERNAL, EXTERNAL, XCLASS
+     tabchar, namesize, namemax, linesize, linemax, mpmax
+     dipsize, tblsize
+     ch, nch, gch (character access macros)
+     alpha(), numeric(), an() (character classification macros)
+     OBJPTR (typedef char *)
+     POINTERSIZE (sizeof(OBJPTR))
+     MAXPARAMS, MAXLOCALS (both 20)
+
+  Extern declarations for:
+     currentclass, currentmsg, currentobject (OBJPTR pointers)
+     domain (int)
+     All d* symbol pointers (dCLASS, dMETHODS, dSTRING, etc.)
+     procedure[] (function pointer array)
+     table[] (hash table)
+     dip1[], dip2[] (diphthong arrays)
+     quote, line[], mline[], id[] (input buffers)
+     lptr, mptr, errcnt, eof, cmode, OptionL (state variables)
+     inp, outp, inp2 (FILE pointers)
+     All function prototypes (scan, add, lookup, match, etc.)
+
+
+  4.2  dale.c -- Main Program
+  ---------------------------
+
+  Global variables:
+     dip1[dipsize], dip2[dipsize]     -- diphthong arrays
+     quote                             -- quote character
+     line[linesize], mline[linesize]   -- input/preprocessing buffers
+     id[linesize]                      -- identifier buffer
+     lptr, mptr                        -- buffer pointers
+     errcnt, eof, cmode                -- state flags
+     OptionL                           -- command-line option flag
+     inp, outp, inp2                   -- file handles
+     currentclass, currentmsg, currentobject
+     domain
+     d* symbol pointers (dCLASS, dMETHODS, dSTRING, etc.)
+     procedure[] = { iadd, isub, imult, idiv, imod, iequ,
+                     inotequ, iless, ilessequ, igreater,
+                     inotless, iincr, idecr, iprint, ilprint,
+                     bprint, slprint, oprint, assign, sysdump, new }
+     table[tblsize]
+
+  Functions:
+     main(argc, argv)
+        - Initialize the symbol table and diphthongs.
+        - Register all d* symbol pointers via add().
+        - For each command-line argument: open file, call parse(),
+          call ersum(), call dump().
+        - If no arguments, read from stdin.
+
+
+  4.3  dale1.c -- Parser Top Level
+  ---------------------------------
+
+  Functions:
+     parse()
+        - Main parse loop: while not EOF, process statements.
+        - Dispatches to adddip() for #dipthong directives.
+        - Calls dalestatement() for all other input.
+        - If the result is a class, stores it as currentobject.
+        - If the result is an expression, evaluates it immediately.
+
+     adddip()
+        - Process a #dipthong directive: add a single or double
+          character diphthong to dip1[] or dip2[].
+
+     kill()
+        - Clear the current line buffer (error recovery).
+
+     ersum()
+        - Print the error count summary.
+
+     error(ptr)
+        - Print an error message with source line and caret
+          pointing to the error position.
+
+     e1() -- "illegal identifier"
+     e2() -- "missing variable name"
+     e3() -- "expression expected"
+     e4() -- "missing ;"
+     e5() -- "message pattern too large"
+     e6() -- "label expected"
+     e7() -- "keyword expected"
+
+
+  4.4  dale2.c -- Class and Expression Parsing
+  ---------------------------------------------
+
+  Functions:
+     dalestatement()
+        - Top-level statement dispatch: function(), class(), or
+          expression().  Sets currentobject on success.
+
+     function()
+        - Parse a "function" definition (partially implemented).
+
+     class()
+        - Parse a class definition:
+          1. Match "class", get identifier, call MkClass().
+          2. Optional "superclass:" -> AddSuper().
+          3. Optional "instance variables:" -> varlist() + MkInstance().
+          4. Optional "class methods:" -> methods() loop + MkMethods().
+          5. Required "instance methods:" -> domainswitch() +
+             methods() loop + MkMethods().
+          6. Optional second domain.
+          7. Match "endclass.".
+
+     expression(searchptr, offset, snum)
+        - Parse an expression:
+          - "label:" + identifier -> MkLabel
+          - "goto" + identifier -> MkLabel (as goto)
+          - identifier + optional "<-" (assignment) or message chain
+          - primary + optional message
+        - Returns an _expr object or NULL.
+
+
+  4.5  dale3.c -- Statement, Message, and Block Parsing
+  ------------------------------------------------------
+
+  Functions:
+     sexpression(slist, index, searchptr, offset)
+        - Parse a sequence of expressions separated by semicolons.
+
+     statements(slist, index, searchptr, offset)
+        - Like sexpression() but handles "return" and appends an
+          implicit "return self" if no explicit return.
+
+     message(list, idx, searchptr, offset)
+        - Parse a message selector (keyword) and optional parameter.
+
+     parameter(list, idx, searchptr, offset)
+        - Parse a parameter (primary + optional message).
+
+     primary(list, idx, searchptr, offset)
+        - Parse a primary: identifier, number, block, parenthesized
+          expression, or string literal.
+
+     block(ptr, searchptr, offset)
+        - Parse a ($ ... $) block: optional "var" declarations,
+          statement list, "$)".
+
+     vardeclaration(list, size, offset)
+        - Parse "var" + variable list + ".".
+
+     varlist(list, max, index, offset)
+        - Parse name/type pairs separated by semicolons.  Each entry
+          is a triple (name, type, offset).
+
+     domainswitch()
+        - Match "external", "internal", or "xclass".
+
+     methods(list, max, index)
+        - Parse a single method: message pattern (mpattern),
+          argument types (argtypelist), body (block or primitive).
+
+     fmethod()
+        - Parse a function method (ppattern + block/primitive).
+
+     argtypelist()
+        - Parse argument type declarations (uses varlist).
+
+
+  4.6  dale4.c -- Message Patterns and Primitives
+  -----------------------------------------------
+
+  Functions:
+     mpattern(msgs, index)
+        - Parse a message pattern: keyword + optional vpattern or
+          epattern.
+
+     ppattern(msgs, index)
+        - Parse a "self-msg" pattern (for function methods).
+
+     evalarg(msgs, index)
+        - Parse a "$" eval argument: identifier + type.
+
+     valarg(msgs, index)
+        - Parse a "&" value argument: identifier + type.
+
+     epattern(msgs, index)
+        - Parse an eval-argument pattern ($ name keyword...).
+
+     vpattern(msgs, index)
+        - Parse a value-argument pattern (& name keyword...).
+
+     primitive(ptr)
+        - Parse "primitive call N" (returns MkCall(N)) or
+          "primitive code" (calls MkCode, a stub).
+
+
+  4.7  lex.c -- Lexer
+  --------------------
+
+  Functions:
+     number(val)
+        - Parse an integer literal with optional sign, octal (0
+          prefix), or hex (0x prefix).  Store value in val[0].
+
+     identifier(id)
+        - Parse an identifier: letter/underscore followed by
+          letters/digits/hyphens/underscores.  Reject reserved
+          words.  Store in id[].
+
+     keyword(id)
+        - Parse a keyword: any non-delimiter character sequence
+          up to whitespace.  Reject reserved words.  Store in id[].
+
+     reserved(p)
+        - Check if string p is a reserved word.
+
+
+  4.8  preproc.c -- Preprocessor
+  -------------------------------
+
+  Functions:
+     keepch(c)
+        - Store character c in the mline buffer.
+
+     preprocess()
+        - Transform line -> mline -> line:
+          - Copy alphanumeric and space characters.
+          - Preserve quoted strings.
+          - Strip /* ... */ comments.
+          - Expand diphthongs (surround with spaces).
+        - Optionally echo the preprocessed line.
+
+     streq(str1, str2)
+        - Compare strings (returns length if equal, 0 otherwise).
+
+     match(lit)
+        - Try to match literal string lit at current position.
+          Advance lptr on success.
+
+     blanks()
+        - Skip whitespace, reading new lines as needed.
+
+     inbyte()
+        - Get next byte from line buffer, reading new lines as
+          needed.
+
+     inchar()
+        - Get next character without the line-refill logic of
+          inbyte().
+
+     do_inline()
+        - Read the next line from the input file into line[].
+
+
+  4.9  eval.c -- Evaluator
+  -------------------------
+
+  Functions:
+     eval(object, parameters, locals)
+        - Dispatch on object's class: symbol lookup, variable
+          address, parameter reference, expression, exprlist,
+          primitive, block, or passthrough.
+
+     evalexpr(expr, locals)
+        - Evaluate a linked-list expression: peel off the subject,
+          then for each message, find the method, evaluate
+          arguments, and call the method block.  Fresh newlocals[]
+          array is created for each method invocation.
+
+     evalblock(block, parameters, locals)
+        - Evaluate each expression in a block sequentially.
+          Return the last result.
+
+     findprimary(aClass, PrimaryMsg, rtnblock, env)
+        - Search aClass's method table (domain env) for PrimaryMsg.
+          If not found, follow the superclass chain recursively.
+          Return the template and set rtnblock to the code block.
+
+
+  4.10  daleprm.c -- Primitive Functions
+  ---------------------------------------
+
+  Functions (each receives OBJPTR *parameters[]):
+     iadd(parameters)      -- self[0] + param[0] -> new integer
+     isub(parameters)      -- self[0] - param[0] -> new integer
+     imult(parameters)     -- self[0] * param[0] -> new integer
+     idiv(parameters)      -- self[0] / param[0] -> new integer
+     imod(parameters)      -- self[0] % param[0] -> new integer
+     iequ(parameters)      -- self[0] == param[0] -> boolean
+     inotequ(parameters)   -- self[0] != param[0] -> boolean
+     iless(parameters)     -- self[0] < param[0]  -> boolean
+     ilessequ(parameters)  -- self[0] <= param[0] -> boolean
+     igreater(parameters)  -- self[0] > param[0]  -> boolean
+     inotless(parameters)  -- self[0] >= param[0] -> boolean
+     iincr(parameters)     -- self[0] + 1 -> new integer
+     idecr(parameters)     -- self[0] - 1 -> new integer
+     iprint(parameters)    -- print integer (no newline)
+     ilprint(parameters)   -- print integer (with newline)
+     bprint(parameters)    -- print "TRUE" or "FALSE"
+     slprint(parameters)   -- print string (with newline)
+     oprint(parameters)    -- polymorphic print (dispatch on class)
+     assign(parameters)    -- *parameters[0][0] = parameters[1]
+     sysdump(parameters)   -- call dump(table)
+     new(parameters)       -- create instance of class parameters[0]
+
+
+  4.11  objprim.c -- Object Allocation
+  -------------------------------------
+
+  Functions:
+     NewInstance(ClassPtr, size)
+        -- malloc(size + POINTERSIZE), stamp class pointer, return
+           data pointer.
+     FreeInstance(objectptr)
+        -- free the memory (back up one pointer-width).
+     ClassSymbol(objectptr)
+        -- return the class pointer (one pointer-width back).
+        -- NULL-safe.
+     GetClass(objectptr)
+        -- follow class symbol to class definition object.
+        -- NULL-safe.
+
+
+  4.12  symtbl.c -- Symbol Table Interface
+  -----------------------------------------
+
+  Functions:
+     lookup(table, symbol)
+        -- hash symbol, scan bucket chain, return object pointer
+           or NULL.
+     add(table, symbol)
+        -- if symbol exists, return existing bucket; else create
+           new entry and return it.
+
+
+  4.13  hash.c -- Hash Table Implementation
+  ------------------------------------------
+
+  Functions:
+     hash(s, tablesize)
+        -- compute hash index using magic number 59.
+     scan(head, id, ptr)
+        -- search bucket chain for id; set ptr to previous entry.
+     insert(name, item, hear)
+        -- create new dSYMBOL entry and append to chain.
+     mkname(id)
+        -- create a string object for a symbol name.
+     memfault()
+        -- fatal error: hash table overflow.
+     init_table(table, size)
+        -- initialize hash table with given size.
+
+
+  4.14  dump.c -- Symbol Table Dump
+  ----------------------------------
+
+  Functions:
+     dump(table)
+        -- walk all buckets, print every entry and its class.
+     printclass(ptr)     [static]
+        -- print superclass, instance vars, method tables.
+     printvar(tmp, size) [static]
+        -- print instance variable declarations.
+     printblock(ptr, space) [static]
+        -- print a block's expression count, variables, expressions.
+     printexpr(ptr, space) [static]
+        -- print an expression list element by element.
+     printspec(msg, ptr, space) [static]
+        -- print a labelled spec (label, goto, param, var).
+     tab(space)          [static]
+        -- print indentation spaces.
+
+
+  4.15  make.c -- Object Constructors
+  ------------------------------------
+
+  Functions:
+     MkFctn()                          -- stub
+     MkMethods(list, size)             -- create _methods, attach to class
+     MkClass(id)                       -- create _class, enter in table
+     AddSuper(id)                      -- set superclass
+     MkInstance(list, size, searchptr) -- create _variables
+     MkBlock(vptr, list, size)         -- create _block
+     MkMsg(list, size, methodlist, index)
+                                        -- create _msg template
+     MkProc(blockptr, methodlist, index)
+                                        -- store method body
+     MkExpr(list, size)                -- create _expr
+     MkNum(num)                        -- create integer
+     MkLabel(id, class, exprnum)       -- create _label/_goto
+     MkVar(str, offset, class)         -- create _var/_parameter
+     blockvar(id, searchptr)           -- look up local var or parameter
+     MkString(str, size)               -- create string
+     MkCall(index)                     -- create _primitive
+     MkCode()                          -- stub
+
+
+  4.16  xtdio.c -- Extended I/O
+  ------------------------------
+
+  Functions:
+     getarg(n, s, size, argc, argv) -- extract command-line argument
+     normalize(fname, fext)         -- uppercase + add extension
+     find(addr, len, ch)            -- find character in string
+     _itoa(n, s)                    -- integer to ASCII
+     reverse(s)                     -- reverse string in place
+
+
+  4.17  ctype.c -- Character Classification Table
+  ------------------------------------------------
+
+  Data:
+     _ctype_[]  -- 256-entry unsigned char array with character
+                    class bits (_U, _L, _N, _S, _P, _C, _X).
+                    Indexed by (char)+1.
+
+  No functions (data only).
+
+
+  4.18  lists.h -- Linked List Definitions
+  -----------------------------------------
+
+  Types:
+     LISTNODE  -- struct with item, class, next, prev
+     LIST      -- pointer to LISTNODE
+     NULLIST   -- NULL list
+
+  Macros:
+     NEXT(l)     -- next pointer (NULL-safe)
+     PREV(l)     -- prev pointer (NULL-safe)
+     ITEM(l)     -- stored item (NULL-safe)
+     CLASS(l)    -- class stamp (NULL-safe)
+     LISTSIZE    -- sizeof(LISTNODE)
+     NewExprList(list) -- allocate and zero a list node
+
+  Inline functions:
+     ninsert(item, hear)    -- insert node after hear
+     place(item, node)      -- store item in node
+     GetValPtr(l)           -- return ITEM(l)
+     ExprToList(items)      -- convert NULL-terminated array to LIST
+     FreeInstance(ptr)      -- free a list node
+
+
+  4.19  expr.c -- Expression Helpers
+  -----------------------------------
+
+  Currently contains only a comment.  ExprToList() is defined as
+  an inline function in lists.h.  This file is retained for future
+  use and is compiled into the interpreter to satisfy the linker.
+
+
+  4.20  hash.h -- Hash Table Constants
+  -------------------------------------
+
+  Defines:
+     HASHSIZE = 20  (default, overridden by tblsize=128 in dale.h)
+     LNKPTR = 0     (link slot index in symbol entries)
+     SIZE = 0        (table size slot index)
+     STRPTR = 1      (string pointer slot index)
+     KEY = 1         (alias for STRPTR)
+     OBJPR = 2       (object pointer slot index)
+     VALUE = 2       (alias for OBJPR)
+
+  Also contains an ASCII diagram of the hash table structure.
+
+
+  4.21  test.c -- Unit Tests for lists.h
+  ---------------------------------------
+
+  A standalone test program that stubs out the Dale runtime
+  (NewInstance, ClassSymbol) and tests the linked-list operations
+  from lists.h.  Tests cover NEXT, PREV, ITEM, CLASS, LISTSIZE,
+  NewExprList, place, ninsert, GetValPtr, ExprToList, and
+  forward/backward traversal.  Built via "make test_lists".
+
+
+  4.22  Test Files (tests/ directory)
+  ------------------------------------
+
+  SimpleTest.d      -- 15-test suite covering arithmetic, comparison,
+                       increment/decrement, strings, variables, and
+                       combined operations.  Defines base classes
+                       (integer, boolean, string, object, _block,
+                       _address, sys) with primitive bindings, then
+                       test classes that exercise each feature.
+  hello.d           -- Minimal "Hello World" program.
+  minimal.d         -- Minimal class definition (integer with +,-,*,/).
+  minimal_test.d    -- Minimal test with object, integer, print.
+  test1.d           -- Class hierarchy test (LinearList, LinkedList,
+                       SingleLink, IndexedTable, etc.).
+  test3.d           -- Loop/control-flow test (to:step:, for:to:by:,
+                       goto, iftrue:).
+  tmptest.d         -- Indexed list class definitions.
+
+
+  4.23  File Dependency Graph
+  ----------------------------
+
+  dale.h is included by every .c file.
+  hash.h is included by dale.c, eval.c, symtbl.c, hash.c, dump.c,
+           objprim.c, make.c.
+  lists.h is included by eval.c, expr.c, test.c.
+
+  Link dependencies (symbol resolution):
+
+  dale.o    -> dale1.o (parse), dump.o (dump), hash.o (init_table),
+               symtbl.o (add), make.o (all Mk* functions),
+               objprim.o (NewInstance), xtdio.o (getarg, normalize)
+
+  dale1.o   -> dale2.o (dalestatement, expression),
+               dale3.o (via dale2.o), preproc.o (blanks, match)
+
+  dale2.o   -> dale3.o (statements, message, primary, block, methods),
+               dale4.o (mpattern, ppattern, primitive),
+               make.o (MkClass, MkExpr, etc.),
+               preproc.o (match, identifier via lex.o)
+
+  dale3.o   -> dale4.o (mpattern, primitive),
+               make.o (MkBlock, MkInstance, MkMsg, MkProc),
+               preproc.o (match), lex.o (identifier, number)
+
+  dale4.o   -> make.o (nothing directly, but called by dale3.o),
+               preproc.o (match, scan), lex.o (keyword, identifier)
+
+  eval.o    -> objprim.o (NewInstance, ClassSymbol, GetClass),
+               lists.h (ExprToList, GetValPtr, NEXT, FreeInstance),
+               daleprm.o (procedure[] function pointers),
+               hash.o (via hash.h constants)
+
+  daleprm.o -> objprim.o (NewInstance),
+               dump.o (dump, via sysdump),
+               symtbl.o (lookup, via new())
+
+  dump.o    -> objprim.o (ClassSymbol),
+               xtdio.o (_itoa),
+               hash.o (via hash.h: SIZE constant)
+
+  make.o    -> objprim.o (NewInstance),
+               symtbl.o (add),
+               hash.o (via hash.h: STRPTR, LNKPTR, OBJPR)
+
+  symtbl.o  -> hash.o (hash, scan, insert, mkname),
+               objprim.o (NewInstance, via insert)
+
+  hash.o    -> objprim.o (NewInstance, memfault),
+               string.h (strcpy, strlen)
+
+  preproc.o -> (self-contained, uses dale.h macros)
+
+  lex.o     -> (self-contained, uses _ctype_ table from ctype.c)
+
+  objprim.o -> stdlib.h (malloc, free, exit)
+
+  xtdio.o   -> ctype.h (toupper), string.h (strlen, strcpy)
+
+  ctype.o   -> (data only, no functions)
+
+
+  END OF MANUAL
+  =============
+
+  This manual was generated from direct reading of the Dale
+  interpreter source code (all .c and .h files in the code/
+  directory) and from the test files in the tests/ directory.
+  It reflects the state of the code as of October 2026, including
+  the 64-bit port and restoration work.
